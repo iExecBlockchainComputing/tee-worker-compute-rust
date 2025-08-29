@@ -5,7 +5,7 @@ edition = "2024"
 
 [[bin]]
 name = "tee-worker-post-compute"
-path = "src/bin/main.rs"
+path = "src/bin/tee_worker_post_compute.rs"
 
 [dependencies]
 aes = "0.8.4"
