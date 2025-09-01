@@ -31,7 +31,7 @@ const DROPBOX_RESULT_STORAGE_PROVIDER: &str = "dropbox";
 ///
 /// The trait methods represent the main stages of the result processing workflow:
 /// validation, compression, and upload. Each method can be used independently or
-/// as part of the complete workflow provided by [`encrypt_and_upload_result`].
+/// as part of the complete workflow provided by [`Web2ResultInterface::encrypt_and_upload_result`].
 ///
 ///
 /// # Example Implementation

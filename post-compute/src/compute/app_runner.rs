@@ -43,7 +43,7 @@ pub trait PostComputeRunnerInterface {
 /// Production implementation of [`PostComputeRunnerInterface`]
 ///
 /// This struct provides a concrete implementation of the [`PostComputeRunnerInterface`],
-/// using the [`signer`] module for challenge generation and the owned [`WorkerApiClient`]
+/// using the [`super::signer`] module for challenge generation and the owned [`WorkerApiClient`]
 /// instance for error reporting.
 pub struct DefaultPostComputeRunner {
     worker_api_client: WorkerApiClient,

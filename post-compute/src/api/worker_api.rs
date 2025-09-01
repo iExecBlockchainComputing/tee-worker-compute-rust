@@ -42,8 +42,8 @@ impl<'a> From<&'a ReplicateStatusCause> for ExitMessage<'a> {
 
 /// Thin wrapper around a [`Client`] that knows how to reach the iExec worker API.
 ///
-/// This client can be created directly with a base URL using [`new()`], or
-/// configured from environment variables using [`from_env()`].
+/// This client can be created directly with a base URL using [`WorkerApiClient::new`], or
+/// configured from environment variables using [`WorkerApiClient::from_env`].
 ///
 /// # Example
 ///
@@ -69,7 +69,7 @@ impl WorkerApiClient {
 
     /// Creates a new WorkerApiClient instance with configuration from environment variables.
     ///
-    /// This method retrieves the worker host from the [`WORKER_HOST_ENV_VAR`] environment variable.
+    /// This method retrieves the worker host from the [`TeeSessionEnvironmentVariable::WorkerHostEnvVar`] environment variable.
     /// If the variable is not set or empty, it defaults to `"worker:13100"`.
     ///
     /// # Returns
@@ -108,11 +108,11 @@ impl WorkerApiClient {
     /// # Returns
     ///
     /// * `Ok(())` - If the exit cause was successfully reported
-    /// * `Err(Error)` - If the exit cause could not be reported due to an HTTP error
+    /// * `Err(ReplicateStatusCause)` - If the exit cause could not be reported due to an HTTP error
     ///
     /// # Errors
     ///
-    /// This function will return an [`Error`] if the request could not be sent or
+    /// This function will return an [`crate::compute::errors::ReplicateStatusCause`] if the request could not be sent or
     /// the server responded with a non‑success status.
     ///
     /// # Example

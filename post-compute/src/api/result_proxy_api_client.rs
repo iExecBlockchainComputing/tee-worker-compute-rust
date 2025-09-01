@@ -56,7 +56,7 @@ impl ResultProxyApiClient {
     ///
     /// # Arguments
     ///
-    /// * `base_url` - The base URL of the result proxy service (e.g., "https://result.v8-bellecour.iex.ec")
+    /// * `base_url` - The base URL of the result proxy service (e.g., "<https://result.v8-bellecour.iex.ec>")
     ///
     /// # Returns
     ///
