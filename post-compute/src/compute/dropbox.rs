@@ -27,7 +27,7 @@ const FILES_UPLOAD_PATH: &str = "/2/files/upload";
 /// # Example
 ///
 /// ```rust
-/// use tee_worker_post_compute::compute::dropbox::{DropboxUploader, DropboxService, DROPBOX_CONTENT_BASE_URL};
+/// use tee_worker_post_compute::compute::dropbox::{DROPBOX_CONTENT_BASE_URL, DropboxService, DropboxUploader};
 ///
 /// let service = DropboxService;
 /// let result = service.upload_file(
@@ -81,7 +81,7 @@ impl DropboxUploader for DropboxService {
     /// # Example
     ///
     /// ```rust
-    /// use tee_worker_post_compute::compute::dropbox::{DropboxUploader, DropboxService, DROPBOX_CONTENT_BASE_URL};
+    /// use tee_worker_post_compute::compute::dropbox::{DROPBOX_CONTENT_BASE_URL, DropboxService, DropboxUploader};
     ///
     /// let service = DropboxService;
     /// let result = service.upload_file(

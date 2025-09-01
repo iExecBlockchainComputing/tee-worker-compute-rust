@@ -244,14 +244,9 @@ pub fn encrypt_data(
 /// * `PostComputeEncryptionFailed` - If the random number generator fails
 ///   to produce sufficient entropy (extremely rare on modern systems)
 ///
-/// # Example
+/// # Note
 ///
-/// ```rust
-/// use tee_worker_post_compute::compute::encryption::{generate_aes_key, AES_KEY_LENGTH};
-///
-/// let aes_key = generate_aes_key().unwrap();
-/// assert_eq!(aes_key.len(), AES_KEY_LENGTH);
-/// ```
+/// This is an internal helper method used by the public [`encrypt_data`] function.
 pub fn generate_aes_key() -> Result<Vec<u8>, ReplicateStatusCause> {
     let mut key_bytes = [0u8; AES_KEY_LENGTH];
     if let Err(e) = OsRng.try_fill_bytes(&mut key_bytes) {
@@ -310,20 +305,9 @@ pub fn generate_aes_key() -> Result<Vec<u8>, ReplicateStatusCause> {
 ///   - Random number generation fails
 ///   - Encryption operation fails
 ///
-/// # Example
+/// # Note
 ///
-/// ```rust
-/// use tee_worker_post_compute::compute::encryption::{aes_encrypt, generate_aes_key, AES_IV_LENGTH};
-///
-/// let data = b"Secret message to encrypt";
-/// let key = generate_aes_key().unwrap();
-/// let encrypted = aes_encrypt(data, &key).unwrap();
-///
-/// // Output format: [`AES_IV_LENGTH` bytes IV][encrypted data with PKCS7 padding]
-/// let AES_BLOCK_SIZE = 16;
-/// let padding_needed = AES_BLOCK_SIZE - (data.len() % AES_BLOCK_SIZE);
-/// assert_eq!(encrypted.len(), AES_IV_LENGTH + data.len() + padding_needed);
-/// ```
+/// This is an internal helper method used by the public [`encrypt_data`] function.
 pub fn aes_encrypt(data: &[u8], key: &[u8]) -> Result<Vec<u8>, ReplicateStatusCause> {
     if data.is_empty() {
         error!("AES encryption input data is empty");
@@ -388,29 +372,9 @@ pub fn aes_encrypt(data: &[u8], key: &[u8]) -> Result<Vec<u8>, ReplicateStatusCa
 ///   - Invalid file path
 ///   - Filesystem errors
 ///
-/// # Example
+/// # Note
 ///
-/// ```rust
-/// use tee_worker_post_compute::compute::{
-///     encryption::{aes_encrypt, generate_aes_key, write_file},
-///     errors::ReplicateStatusCause,
-/// };
-///
-/// fn main() -> Result<(), ReplicateStatusCause> {
-///     let plaintext: &[u8] = b"example data to encrypt";
-///     let key = generate_aes_key()?;
-///     let encrypted_data = aes_encrypt(&plaintext, &key)?;
-///     match write_file("./output/data.aes".to_string(), &encrypted_data) {
-///         Ok(()) => {
-///             println!("File written successfully");
-///         },
-///         Err(e) => {
-///             eprintln!("Failed to write file: {e}");
-///         }
-///     }
-///     Ok(())
-/// }
-/// ```
+/// This is an internal helper method used by the public [`encrypt_data`] function.
 pub fn write_file(file_path: String, data: &[u8]) -> Result<(), ReplicateStatusCause> {
     if let Err(e) = fs::write(&file_path, data) {
         let mut hasher = Sha3_256::new();
