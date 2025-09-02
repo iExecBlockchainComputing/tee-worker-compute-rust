@@ -32,50 +32,6 @@ const DROPBOX_RESULT_STORAGE_PROVIDER: &str = "dropbox";
 /// The trait methods represent the main stages of the result processing workflow:
 /// validation, compression, and upload. Each method can be used independently or
 /// as part of the complete workflow provided by [`Web2ResultInterface::encrypt_and_upload_result`].
-///
-///
-/// # Example Implementation
-///
-/// ```rust
-/// use tee_worker_post_compute::compute::{
-///     web2_result::Web2ResultInterface,
-///     computed_file::ComputedFile,
-///     errors::ReplicateStatusCause,
-/// };
-///
-/// struct MockResultService;
-///
-/// impl Web2ResultInterface for MockResultService {
-///     fn encrypt_and_upload_result(&self, computed_file: &ComputedFile) -> Result<(), ReplicateStatusCause> {
-///         // Mock implementation for testing
-///         Ok(())
-///     }
-///     fn check_result_files_name(&self, task_id: &str, iexec_out_path: &str) -> Result<(), ReplicateStatusCause> {
-///         // Mock implementation for testing
-///         Ok(())
-///     }
-///     fn zip_iexec_out(&self, iexec_out_path: &str, save_in: &str) -> Result<String, ReplicateStatusCause> {
-///         // Mock implementation for testing
-///         Ok(String::from("/iexec_out.zip"))
-///     }
-///     fn eventually_encrypt_result(&self, in_data_file_path: &str) -> Result<String, ReplicateStatusCause> {
-///         // Mock implementation for testing
-///         Ok(String::from("/iexec_out/result.txt"))
-///     }
-///     fn upload_result(&self, computed_file: &ComputedFile, file_to_upload_path: &str) -> Result<String, ReplicateStatusCause> {
-///         // Mock implementation for testing
-///         Ok(String::from("https://ipfs.io/ipfs/Qm..."))
-///     }
-///     fn upload_to_ipfs_with_iexec_proxy(&self, computed_file: &ComputedFile, base_url: &str, token: &str, file_to_upload_path: &str) -> Result<String, ReplicateStatusCause> {
-///         // Mock implementation for testing
-///         Ok(String::from("https://ipfs.io/ipfs/Qm..."))
-///     }
-///     fn upload_to_dropbox(&self, computed_file: &ComputedFile, token: &str, file_to_upload_path: &str) -> Result<String, ReplicateStatusCause> {
-///         // Mock implementation for testing
-///         Ok(String::from("https://dropbox.com/results/0x123.zip"))
-///     }
-/// }
-/// ```
 #[cfg_attr(test, automock)]
 pub trait Web2ResultInterface {
     fn encrypt_and_upload_result(
@@ -434,12 +390,11 @@ impl Web2ResultInterface for Web2ResultService {
     /// # Example
     ///
     /// ```rust
-    /// use tee_worker_post_compute::compute::{
-    ///     web2_result::{Web2ResultInterface, Web2ResultService},
-    ///     utils::env_utils::{TeeSessionEnvironmentVariable, get_env_var_or_error},
-    /// };
     /// use std::env;
-    /// use base64::{engine::general_purpose, Engine as _};
+    /// use tee_worker_post_compute::compute::web2_result::{
+    ///     Web2ResultInterface,
+    ///     Web2ResultService
+    /// };
     ///
     /// // Set environment variables for encryption
     /// unsafe {

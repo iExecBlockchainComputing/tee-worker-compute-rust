@@ -154,7 +154,10 @@ pub fn read_computed_file(
 /// # Example
 ///
 /// ```
-/// use tee_worker_post_compute::compute::computed_file::{build_result_digest_in_computed_file, ComputedFile};
+/// use tee_worker_post_compute::compute::computed_file::{
+///     build_result_digest_in_computed_file,
+///     ComputedFile
+/// };
 ///
 /// let mut computed_file = ComputedFile {
 ///     task_id: Some("0x123".to_string()),
@@ -233,7 +236,10 @@ pub fn build_result_digest_in_computed_file(
 /// # Example
 ///
 /// ```
-/// use tee_worker_post_compute::compute::computed_file::{sign_computed_file, ComputedFile};
+/// use tee_worker_post_compute::compute::computed_file::{
+///     sign_computed_file,
+///     ComputedFile
+/// };
 ///
 /// // Assuming environment variables are set:
 /// // SIGN_WORKER_ADDRESS=0x1234567890abcdef1234567890abcdef12345678
