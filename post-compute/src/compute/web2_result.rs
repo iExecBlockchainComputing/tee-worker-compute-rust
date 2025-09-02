@@ -82,7 +82,7 @@ pub trait Web2ResultInterface {
 ///
 /// ```rust
 /// use tee_worker_post_compute::compute::{
-///     web2_result::{Web2ResultService, Web2ResultInterface},
+///     web2_result::{Web2ResultInterface, Web2ResultService},
 ///     computed_file::ComputedFile,
 /// };
 ///
@@ -389,6 +389,7 @@ impl Web2ResultInterface for Web2ResultService {
     /// # Example
     ///
     /// ```rust
+    /// use base64::{Engine as _, engine::general_purpose};
     /// use std::env;
     /// use tee_worker_post_compute::compute::web2_result::{
     ///     Web2ResultInterface,
@@ -398,7 +399,7 @@ impl Web2ResultInterface for Web2ResultService {
     /// // Set environment variables for encryption
     /// unsafe {
     ///     env::set_var("RESULT_ENCRYPTION", "true");
-    ///     env::set_var("RESULT_ENCRYPTION_PUBLIC_KEY", base64::encode("-----BEGIN PUBLIC KEY-----..."));
+    ///     env::set_var("RESULT_ENCRYPTION_PUBLIC_KEY", general_purpose::STANDARD.encode("-----BEGIN PUBLIC KEY-----..."));
     /// }
     ///
     /// match Web2ResultService.eventually_encrypt_result("/path/to/result.zip") {
