@@ -79,7 +79,7 @@ pub const AES_IV_LENGTH: usize = 16;
 /// ```rust
 /// use tee_worker_post_compute::compute::encryption::encrypt_data;
 ///
-/// const TEST_RSA_PUBLIC_KEY_PEM: &str = r#"-----BEGIN PUBLIC KEY-----
+/// const RSA_PUBLIC_KEY: &str = r#"-----BEGIN PUBLIC KEY-----
 /// MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAr0mx20CSFczJaM4rtYfL
 /// VHXfTybD4J85SGrI6GfPlOhAnocZOMIRJVqrYSGqfNvw6bnv3OrNp0OJ6Av7v20r
 /// YiciyJ/R9c7W4jLksTC0qAEr1x8IsH1rsTcgIhD+V2eQWqi05ArUg+YDQiGr/B6T
@@ -90,7 +90,7 @@ pub const AES_IV_LENGTH: usize = 16;
 /// -----END PUBLIC KEY-----"#;
 ///
 /// let temp_file = tempfile::NamedTempFile::new().expect("Failed to create temp file");
-/// match std::fs::write(temp_file.path(), b"Super secret data") {
+/// match std::fs::write(temp_file.path(), b"Data to encrypt") {
 ///     Ok(_) => println!("Successfully wrote to temp file"),
 ///     Err(e) => eprintln!("Failed to write to temp file: {}", e),
 /// }
@@ -100,13 +100,13 @@ pub const AES_IV_LENGTH: usize = 16;
 /// };
 ///
 /// // Encrypt a file and create a ZIP archive
-/// match encrypt_data(file, TEST_RSA_PUBLIC_KEY_PEM, true) {
+/// match encrypt_data(file, RSA_PUBLIC_KEY, true) {
 ///     Ok(result) => println!("Encrypted ZIP created: {}", result),
 ///     Err(e) => eprintln!("Failed to encrypt file and create ZIP archive: {:?}", e),
 /// }
 ///
 /// // Encrypt a file and do not create a ZIP archive
-/// match encrypt_data(file, TEST_RSA_PUBLIC_KEY_PEM, false) {
+/// match encrypt_data(file, RSA_PUBLIC_KEY, false) {
 ///     Ok(result) => println!("Encrypted files in: {}", result),
 ///     Err(e) => eprintln!("Failed to encrypt file and create directory: {:?}", e),
 /// }
