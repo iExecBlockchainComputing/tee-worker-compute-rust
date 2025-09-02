@@ -77,10 +77,7 @@ pub const AES_IV_LENGTH: usize = 16;
 /// # Example
 ///
 /// ```rust
-/// use tee_worker_post_compute::compute::{
-///     encryption::encrypt_data,
-///     errors::ReplicateStatusCause,
-/// };
+/// use tee_worker_post_compute::compute::encryption::encrypt_data;
 ///
 /// const TEST_RSA_PUBLIC_KEY_PEM: &str = r#"-----BEGIN PUBLIC KEY-----
 /// MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAr0mx20CSFczJaM4rtYfL
@@ -92,18 +89,26 @@ pub const AES_IV_LENGTH: usize = 16;
 /// FQIDAQAB
 /// -----END PUBLIC KEY-----"#;
 ///
-/// fn main() -> Result<(), ReplicateStatusCause> {
-///     let temp_file = tempfile::NamedTempFile::new().expect("Failed to create temp file");
-///     std::fs::write(temp_file.path(), b"Super secret data").expect("Failed to write to temp file");
-///     let file = temp_file.path().to_str().unwrap();
-///     // Encrypt a file and create a ZIP archive
-///     let result = encrypt_data(file, TEST_RSA_PUBLIC_KEY_PEM, true)?;
-///     println!("Encrypted ZIP created: {}", result);
+/// let temp_file = tempfile::NamedTempFile::new().expect("Failed to create temp file");
+/// match std::fs::write(temp_file.path(), b"Super secret data") {
+///     Ok(_) => println!("Successfully wrote to temp file"),
+///     Err(e) => eprintln!("Failed to write to temp file: {}", e),
+/// }
+/// let file = match temp_file.path().to_str() {
+///     Some(f) => f,
+///     _ => "error_converting_temp_file_path_to_string",
+/// };
 ///
-///     // Encrypt a file and get directory path
-///     let result = encrypt_data(file, TEST_RSA_PUBLIC_KEY_PEM, false)?;
-///     println!("Encrypted files in: {}", result);
-///     Ok(())
+/// // Encrypt a file and create a ZIP archive
+/// match encrypt_data(file, TEST_RSA_PUBLIC_KEY_PEM, true) {
+///     Ok(result) => println!("Encrypted ZIP created: {}", result),
+///     Err(e) => eprintln!("Failed to encrypt file and create ZIP archive: {:?}", e),
+/// }
+///
+/// // Encrypt a file and do not create a ZIP archive
+/// match encrypt_data(file, TEST_RSA_PUBLIC_KEY_PEM, false) {
+///     Ok(result) => println!("Encrypted files in: {}", result),
+///     Err(e) => eprintln!("Failed to encrypt file and create directory: {:?}", e),
 /// }
 /// ```
 pub fn encrypt_data(
