@@ -23,23 +23,6 @@ const FILES_UPLOAD_PATH: &str = "/2/files/upload";
 ///
 /// This is a lightweight utility type. Use with `DropboxService` and call
 /// [`DropboxService::upload_file`].
-///
-/// # Example
-///
-/// ```rust
-/// use tee_worker_post_compute::compute::dropbox::{
-///     DROPBOX_CONTENT_BASE_URL,
-///     DropboxService,
-///     DropboxUploader,
-/// };
-///
-/// let result = DropboxService.upload_file(
-///     "your-access-token",
-///     "/path/to/local/file.zip",
-///     "/results/remote-file.zip",
-///     DROPBOX_CONTENT_BASE_URL,
-/// );
-/// ```
 pub struct DropboxService;
 
 #[cfg_attr(test, automock)]
