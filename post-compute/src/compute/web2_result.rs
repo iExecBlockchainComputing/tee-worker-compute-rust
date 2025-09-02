@@ -82,8 +82,8 @@ pub trait Web2ResultInterface {
 ///
 /// ```rust
 /// use tee_worker_post_compute::compute::{
-///     web2_result::{Web2ResultInterface, Web2ResultService},
 ///     computed_file::ComputedFile,
+///     web2_result::{Web2ResultInterface, Web2ResultService},
 /// };
 ///
 /// let computed_file = ComputedFile {
