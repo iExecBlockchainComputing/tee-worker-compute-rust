@@ -12,9 +12,9 @@ use sha3::{Digest, Sha3_256};
 use std::{fs, path::Path};
 
 /// 256-bit key (32 bytes)
-pub const AES_KEY_LENGTH: usize = 32;
+const AES_KEY_LENGTH: usize = 32;
 /// 128-bit IV (16 bytes) same as the AES block size
-pub const AES_IV_LENGTH: usize = 16;
+const AES_IV_LENGTH: usize = 16;
 
 /// Encrypts a data file using hybrid encryption (AES-256-CBC + RSA-2048).
 ///
