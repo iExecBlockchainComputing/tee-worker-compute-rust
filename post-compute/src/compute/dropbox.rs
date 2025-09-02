@@ -21,7 +21,7 @@ const FILES_UPLOAD_PATH: &str = "/2/files/upload";
 
 /// Service for handling Dropbox file uploads.
 ///
-/// This is a lightweight utility type. Construct with `let service = DropboxService;` and call
+/// This is a lightweight utility type. Use with `DropboxService` and call
 /// [`DropboxService::upload_file`].
 ///
 /// # Example
@@ -33,8 +33,7 @@ const FILES_UPLOAD_PATH: &str = "/2/files/upload";
 ///     DropboxUploader,
 /// };
 ///
-/// let service = DropboxService;
-/// let result = service.upload_file(
+/// let result = DropboxService.upload_file(
 ///     "your-access-token",
 ///     "/path/to/local/file.zip",
 ///     "/results/remote-file.zip",

@@ -24,8 +24,10 @@ use serde::Serialize;
 /// # Example
 ///
 /// ```
-/// use tee_worker_post_compute::api::worker_api::ExitMessage;
-/// use tee_worker_post_compute::compute::errors::ReplicateStatusCause;
+/// use tee_worker_post_compute::{
+///     api::worker_api::ExitMessage,
+///     compute::errors::ReplicateStatusCause,
+/// };
 ///
 /// let exit_message = ExitMessage::from(&ReplicateStatusCause::PostComputeInvalidTeeSignature);
 /// ```
@@ -112,14 +114,16 @@ impl WorkerApiClient {
     ///
     /// # Errors
     ///
-    /// This function will return an [`crate::compute::errors::ReplicateStatusCause`] if the request could not be sent or
-    /// the server responded with a non‑success status.
+    /// This function will return an [`tee_worker_post_compute::compute::errors::ReplicateStatusCause`]
+    /// if the request could not be sent or the server responded with a non‑success status.
     ///
     /// # Example
     ///
     /// ```
-    /// use tee_worker_post_compute::api::worker_api::{ExitMessage, WorkerApiClient};
-    /// use tee_worker_post_compute::compute::errors::ReplicateStatusCause;
+    /// use tee_worker_post_compute::{
+    ///     api::worker_api::{ExitMessage, WorkerApiClient},
+    ///     compute::errors::ReplicateStatusCause,
+    /// };
     ///
     /// let client = WorkerApiClient::new("http://worker:13100");
     /// let exit_message = ExitMessage::from(&ReplicateStatusCause::PostComputeInvalidTeeSignature);
@@ -186,8 +190,10 @@ impl WorkerApiClient {
     /// # Example
     ///
     /// ```
-    /// use tee_worker_post_compute::api::worker_api::WorkerApiClient;
-    /// use tee_worker_post_compute::compute::computed_file::ComputedFile;
+    /// use tee_worker_post_compute::{
+    ///     api::worker_api::WorkerApiClient,
+    ///     compute::computed_file::ComputedFile,
+    /// };
     ///
     /// let client = WorkerApiClient::new("http://worker:13100");
     /// let computed_file = ComputedFile {

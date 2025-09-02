@@ -86,7 +86,6 @@ pub trait Web2ResultInterface {
 ///     computed_file::ComputedFile,
 /// };
 ///
-/// let service = Web2ResultService;
 /// let computed_file = ComputedFile {
 ///     task_id: Some(String::from("0x123")),
 ///     result_digest: Some(String::from("0xabc")),
@@ -95,7 +94,7 @@ pub trait Web2ResultInterface {
 /// };
 ///
 /// // Process and upload results
-/// match service.encrypt_and_upload_result(&computed_file) {
+/// match Web2ResultService.encrypt_and_upload_result(&computed_file) {
 ///     Ok(()) => println!("Results uploaded successfully"),
 ///     Err(e) => eprintln!("Upload failed: {:?}", e),
 /// }

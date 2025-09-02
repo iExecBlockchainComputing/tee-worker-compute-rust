@@ -153,7 +153,6 @@ impl PostComputeRunnerInterface for DefaultPostComputeRunner {
 /// use tee_worker_post_compute::compute::app_runner::{
 ///     start_with_runner,
 ///     DefaultPostComputeRunner,
-///     PostComputeRunnerInterface,
 /// };
 ///
 /// // Using the default runner

@@ -110,7 +110,10 @@ impl ResultProxyApiClient {
     /// # Example
     ///
     /// ```rust
-    /// use tee_worker_post_compute::api::result_proxy_api_client::{ResultProxyApiClient, ResultModel};
+    /// use tee_worker_post_compute::api::result_proxy_api_client::{
+    ///     ResultProxyApiClient,
+    ///     ResultModel,
+    /// };
     ///
     /// let client = ResultProxyApiClient::new("https://result-proxy.iex.ec");
     /// let result_model = ResultModel {
