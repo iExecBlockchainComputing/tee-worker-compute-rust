@@ -49,12 +49,7 @@ pub struct DefaultPostComputeRunner {
     worker_api_client: WorkerApiClient,
 }
 
-impl Default for DefaultPostComputeRunner {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
+#[allow(clippy::new_without_default)] // We don't need a default constructor for the DefaultPostComputeRunner struct
 impl DefaultPostComputeRunner {
     pub fn new() -> Self {
         Self {
@@ -152,37 +147,15 @@ impl PostComputeRunnerInterface for DefaultPostComputeRunner {
 /// # Example
 ///
 /// ```rust
-/// use tee_worker_post_compute::{
-///     api::worker_api::ExitMessage,
-///     compute::{
-///         errors::ReplicateStatusCause,
-///         app_runner::{start_with_runner, DefaultPostComputeRunner, PostComputeRunnerInterface},
-///         computed_file::ComputedFile,
-///     }
+/// use tee_worker_post_compute::compute::app_runner::{
+///     start_with_runner,
+///     DefaultPostComputeRunner,
+///     PostComputeRunnerInterface,
 /// };
 ///
 /// // Using the default runner
 /// let runner = DefaultPostComputeRunner::new();
 /// let exit_code = start_with_runner(&runner);
-///
-/// // Using a custom runner
-/// struct MyCustomRunner;
-/// impl PostComputeRunnerInterface for MyCustomRunner {
-///     fn run_post_compute(&self, _: &str) -> Result<(), ReplicateStatusCause> {
-///         Ok(())
-///     }
-///     fn get_challenge(&self, _: &str) -> Result<String, ReplicateStatusCause> {
-///         Ok("challenge".to_string())
-///     }
-///     fn send_exit_cause(&self, _: &str, _: &str, _: &ExitMessage<'_>) -> Result<(), ReplicateStatusCause> {
-///         Ok(())
-///     }
-///     fn send_computed_file(&self, _: &ComputedFile) -> Result<(), ReplicateStatusCause> {
-///         Ok(())
-///     }
-/// }
-/// let custom_runner = MyCustomRunner;
-/// let exit_code = start_with_runner(&custom_runner);
 /// ```
 pub fn start_with_runner<R: PostComputeRunnerInterface>(runner: &R) -> ExitMode {
     println!("Tee worker post-compute started");
