@@ -49,7 +49,7 @@ pub struct DefaultPostComputeRunner {
     worker_api_client: WorkerApiClient,
 }
 
-#[allow(clippy::new_without_default)] // We don't need a default constructor for the DefaultPostComputeRunner struct
+#[allow(clippy::new_without_default, reason = "The new method will be replaced by the recommended Default trait implementation later")]
 impl DefaultPostComputeRunner {
     pub fn new() -> Self {
         Self {
