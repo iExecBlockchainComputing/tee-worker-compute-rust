@@ -4,7 +4,6 @@ use sha256::{Sha256Digest, digest};
 pub fn concatenate_and_hash(hexa_strings: &[&str]) -> String {
     let mut hasher = Keccak256::default();
     for hexa_string in hexa_strings {
-        println!("value {hexa_string}");
         hasher.update(hex_string_to_byte_array(hexa_string));
     }
     format!("0x{:x}", hasher.finalize())
@@ -19,7 +18,8 @@ pub fn hex_string_to_byte_array(input: &str) -> Vec<u8> {
 
     let mut data: Vec<u8> = vec![];
     let start_idx = if len % 2 != 0 {
-        let byte = u8::from_str_radix(&clean_input[0..1], 16).expect("");
+        let byte =
+            u8::from_str_radix(&clean_input[0..1], 16).expect("Invalid hex digit in input string");
         data.push(byte);
         1
     } else {
@@ -27,7 +27,10 @@ pub fn hex_string_to_byte_array(input: &str) -> Vec<u8> {
     };
 
     for i in (start_idx..len).step_by(2) {
-        data.push(u8::from_str_radix(&clean_input[i..i + 2], 16).expect(""));
+        data.push(
+            u8::from_str_radix(&clean_input[i..i + 2], 16)
+                .expect("Invalid hex digit in input string"),
+        );
     }
 
     data

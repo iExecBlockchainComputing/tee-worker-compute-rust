@@ -45,7 +45,7 @@ pub fn sign_enclave_challenge(
 ) -> Result<String, ReplicateStatusCause> {
     let signer: PrivateKeySigner = enclave_challenge_private_key
         .parse::<PrivateKeySigner>()
-        .map_err(|_| ReplicateStatusCause::PreComputeWorkerAddressMissing)?;
+        .map_err(|_| ReplicateStatusCause::PreComputeTeeChallengePrivateKeyMissing)?;
 
     let signature: Signature = signer
         .sign_message_sync(&hex_string_to_byte_array(message_hash))
