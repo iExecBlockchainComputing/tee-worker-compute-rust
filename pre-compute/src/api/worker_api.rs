@@ -22,7 +22,7 @@ use serde::Serialize;
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tee_worker_pre_compute::api::worker_api::ExitMessage;
 /// use tee_worker_pre_compute::compute::errors::ReplicateStatusCause;
 ///
@@ -46,7 +46,7 @@ impl<'a> From<&'a ReplicateStatusCause> for ExitMessage<'a> {
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tee_worker_pre_compute::api::worker_api::WorkerApiClient;
 ///
 /// let client = WorkerApiClient::new("http://worker:13100");
@@ -77,7 +77,7 @@ impl WorkerApiClient {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```rust
     /// use tee_worker_pre_compute::api::worker_api::WorkerApiClient;
     ///
     /// let client = WorkerApiClient::from_env();
@@ -116,7 +116,7 @@ impl WorkerApiClient {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```rust
     /// use tee_worker_pre_compute::api::worker_api::{ExitMessage, WorkerApiClient};
     /// use tee_worker_pre_compute::compute::errors::ReplicateStatusCause;
     ///

@@ -29,7 +29,7 @@ pub enum ExitMode {
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tee_worker_pre_compute::compute::app_runner::start_with_app;
 /// use tee_worker_pre_compute::compute::pre_compute_app::PreComputeApp;
 ///
@@ -86,7 +86,7 @@ pub fn start_with_app<A: PreComputeAppTrait>(
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tee_worker_pre_compute::compute::app_runner::start;
 ///
 /// let exit_code = start();

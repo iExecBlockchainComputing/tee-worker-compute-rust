@@ -21,7 +21,7 @@ use std::path::{Path, PathBuf};
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use std::path::PathBuf;
 /// use tee_worker_pre_compute::compute::utils::file_utils::write_file;
 ///
@@ -69,7 +69,7 @@ pub fn write_file(content: &[u8], file_path: &Path, context: &str) -> Result<(),
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tee_worker_pre_compute::compute::utils::file_utils::download_file;
 ///
 /// if let Some(path) = download_file("https://iex.ec/file.txt", "/tmp", "iexec.txt") {
@@ -151,7 +151,7 @@ pub fn download_file(url: &str, parent_dir: &str, filename: &str) -> Option<Path
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tee_worker_pre_compute::compute::utils::file_utils::download_from_url;
 /// if let Some(bytes) = download_from_url("https://httpbin.org/json/test.json") {
 ///     println!("Downloaded {} bytes", bytes.len());

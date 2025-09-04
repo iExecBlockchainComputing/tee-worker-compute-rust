@@ -49,6 +49,25 @@ impl PreComputeApp {
 }
 
 impl PreComputeAppTrait for PreComputeApp {
+    /// Runs the complete pre-compute pipeline.
+    ///
+    /// This method orchestrates the entire pre-compute process:
+    /// 1. Reads configuration arguments
+    /// 2. Validates the output folder exists
+    /// 3. Downloads and decrypts the dataset (if required)
+    /// 4. Downloads all input files
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(())` if all operations completed successfully
+    /// - `Err(ReplicateStatusCause)` if any step failed
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// let mut app = PreComputeApp::new("task_id".to_string());
+    /// app.run()?;
+    /// ```
     fn run(&mut self) -> Result<(), ReplicateStatusCause> {
         self.pre_compute_args = PreComputeArgs::read_args()?;
         self.check_output_folder()?;
@@ -61,23 +80,6 @@ impl PreComputeAppTrait for PreComputeApp {
         Ok(())
     }
 
-    /// Checks whether the output folder specified in `pre_compute_args` exists.
-    ///
-    /// # Returns
-    ///
-    /// - `Ok(())` if the output directory (`output_dir`) exists.
-    /// - `Err(ReplicateStatusCause::PreComputeOutputFolderNotFound)` if the directory does not exist,
-    ///   or if `pre_compute_args` is missing.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use tee_worker_pre_compute::compute::pre_compute_app::{PreComputeApp, PreComputeAppTrait};
-    ///
-    /// let mut pre_compute_app = PreComputeApp::new("0x123456789abcdef".to_string());
-    ///
-    /// pre_compute_app.check_output_folder();
-    /// ```
     fn check_output_folder(&self) -> Result<(), ReplicateStatusCause> {
         let output_dir: &str = &self.pre_compute_args.output_dir;
         let chain_task_id: &str = &self.chain_task_id;
@@ -93,31 +95,6 @@ impl PreComputeAppTrait for PreComputeApp {
         Err(ReplicateStatusCause::PreComputeOutputFolderNotFound)
     }
 
-    /// Downloads the input files listed in `pre_compute_args.input_files` to the specified `output_dir`.
-    ///
-    /// Each URL is hashed (SHA-256) to generate a unique local filename.
-    /// If any download fails, the function returns an error.
-    ///
-    /// # Returns
-    ///
-    /// - `Ok(())` if all files are downloaded successfully.
-    /// - `Err(ReplicateStatusCause::PreComputeInputFileDownloadFailed)` if any file fails to download.
-    ///
-    /// # Panics
-    ///
-    /// This function panics if:
-    /// - `pre_compute_args` is `None`.
-    /// - `chain_task_id` is `None`.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use tee_worker_pre_compute::compute::pre_compute_app::{PreComputeApp, PreComputeAppTrait};
-    ///
-    /// let mut pre_compute_app = PreComputeApp::new("0x123456789abcdef".to_string());
-    ///
-    /// pre_compute_app.download_input_files().unwrap();
-    /// ```
     fn download_input_files(&self) -> Result<(), ReplicateStatusCause> {
         let args = &self.pre_compute_args;
         let chain_task_id: &str = &self.chain_task_id;
@@ -133,23 +110,6 @@ impl PreComputeAppTrait for PreComputeApp {
         Ok(())
     }
 
-    /// Downloads the encrypted dataset file from a URL or IPFS multi-address, and verifies its checksum.
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(Vec<u8>)` containing the dataset's encrypted content if download and verification succeed.
-    /// * `Err(ReplicateStatusCause::PreComputeDatasetDownloadFailed)` if the download fails or inputs are missing.
-    /// * `Err(ReplicateStatusCause::PreComputeInvalidDatasetChecksum)` if checksum validation fails.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use tee_worker_pre_compute::compute::pre_compute_app::{PreComputeApp, PreComputeAppTrait};
-    ///
-    /// let mut app = PreComputeApp::new("0x123456789abcdef".to_string());
-    ///
-    /// app.download_encrypted_dataset();
-    /// ```
     fn download_encrypted_dataset(&self) -> Result<Vec<u8>, ReplicateStatusCause> {
         let args = &self.pre_compute_args;
         let chain_task_id = &self.chain_task_id;
@@ -192,30 +152,6 @@ impl PreComputeAppTrait for PreComputeApp {
         Ok(encrypted_content)
     }
 
-    /// Decrypts the provided encrypted dataset bytes using AES-CBC.
-    ///
-    /// The first 16 bytes of `encrypted_content` are treated as the IV.
-    /// The rest is the ciphertext. The decryption key is decoded from a Base64 string.
-    ///
-    /// # Arguments
-    ///
-    /// * `encrypted_content` - Full encrypted dataset, including the IV prefix.
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(Vec<u8>)` containing the plaintext dataset if decryption succeeds.
-    /// * `Err(ReplicateStatusCause::PreComputeDatasetDecryptionFailed)` if the key is missing, decoding fails, or decryption fails.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use tee_worker_pre_compute::compute::pre_compute_app::{PreComputeApp, PreComputeAppTrait};
-    ///
-    /// let mut app = PreComputeApp::new("0x123456789abcdef".to_string());
-    ///
-    /// let encrypted = vec![/* ... */];
-    /// let decrypted = app.decrypt_dataset(&encrypted);
-    /// ```
     fn decrypt_dataset(&self, encrypted_content: &[u8]) -> Result<Vec<u8>, ReplicateStatusCause> {
         let base64_key: &str = &self.pre_compute_args.encrypted_dataset_base64_key;
 
@@ -236,29 +172,6 @@ impl PreComputeAppTrait for PreComputeApp {
             .map_err(|_| ReplicateStatusCause::PreComputeDatasetDecryptionFailed)
     }
 
-    /// Saves the decrypted (plain) dataset to disk in the configured output directory.
-    ///
-    /// The output filename is taken from `pre_compute_args.plain_dataset_filename`.
-    ///
-    /// # Arguments
-    ///
-    /// * `plain_dataset` - The dataset content to write to a file.
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(())` if the file is successfully saved.
-    /// * `Err(ReplicateStatusCause::PreComputeSavingPlainDatasetFailed)` if the path is invalid or write fails.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use tee_worker_pre_compute::compute::pre_compute_app::{PreComputeApp, PreComputeAppTrait};
-    ///
-    /// let mut app = PreComputeApp::new("0x123456789abcdef".to_string());
-    ///
-    /// let plain_data = vec![/* ... */];
-    /// app.save_plain_dataset_file(&plain_data);
-    /// ```
     fn save_plain_dataset_file(&self, plain_dataset: &[u8]) -> Result<(), ReplicateStatusCause> {
         let chain_task_id: &str = &self.chain_task_id;
         let args = &self.pre_compute_args;

@@ -28,7 +28,7 @@ use alloy_signer_local::PrivateKeySigner;
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tee_worker_pre_compute::compute::signer::sign_enclave_challenge;
 ///
 /// let message_hash = "0x5cd0e9c5180dd35e2b8285d0db4ded193a9b4be6fbfab90cbadccecab130acad";
@@ -83,7 +83,7 @@ pub fn sign_enclave_challenge(
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tee_worker_pre_compute::compute::signer::get_challenge;
 ///
 /// // Assuming the necessary environment variables are set:

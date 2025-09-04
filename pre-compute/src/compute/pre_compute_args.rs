@@ -44,7 +44,8 @@ impl PreComputeArgs {
     /// - Missing input file URLs
     ///
     /// # Example
-    /// ```
+    ///
+    /// ```rust
     /// use tee_worker_pre_compute::compute::pre_compute_args::PreComputeArgs;
     ///
     /// // Typically called with task ID from execution context

@@ -68,7 +68,7 @@ pub struct ComputedFile {
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tee_worker_post_compute::compute::computed_file::read_computed_file;
 ///
 /// match read_computed_file("0x123456789abcdef", "/iexec_out") {
@@ -153,7 +153,7 @@ pub fn read_computed_file(
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tee_worker_post_compute::compute::computed_file::{
 ///     build_result_digest_in_computed_file,
 ///     ComputedFile
@@ -235,7 +235,7 @@ pub fn build_result_digest_in_computed_file(
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tee_worker_post_compute::compute::computed_file::{
 ///     sign_computed_file,
 ///     ComputedFile
