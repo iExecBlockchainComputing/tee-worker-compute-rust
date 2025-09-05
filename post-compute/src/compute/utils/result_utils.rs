@@ -30,7 +30,7 @@ use std::{
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tee_worker_post_compute::compute::{computed_file::ComputedFile, utils::result_utils::compute_web3_result_digest};
 ///
 /// let computed_file = ComputedFile {
@@ -93,7 +93,7 @@ pub fn compute_web3_result_digest(computed_file: &ComputedFile) -> String {
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use tee_worker_post_compute::compute::{computed_file::ComputedFile, utils::result_utils::compute_web2_result_digest};
 ///
 /// let computed_file = ComputedFile {
@@ -225,7 +225,7 @@ pub fn sha256_file(file_path: &Path) -> String {
 ///
 /// # Example
 ///
-/// ```
+/// ```rust
 /// use std::path::Path;
 /// use tee_worker_post_compute::compute::utils::result_utils::get_file_tree_sha256;
 ///

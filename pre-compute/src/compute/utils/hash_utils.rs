@@ -1,5 +1,5 @@
 use sha3::{Digest, Keccak256};
-use sha256::{Sha256Digest, digest};
+use sha256::digest;
 
 pub fn concatenate_and_hash(hexa_strings: &[&str]) -> String {
     let mut hasher = Keccak256::default();
@@ -18,8 +18,7 @@ pub fn hex_string_to_byte_array(input: &str) -> Vec<u8> {
 
     let mut data: Vec<u8> = vec![];
     let start_idx = if len % 2 != 0 {
-        let byte =
-            u8::from_str_radix(&clean_input[0..1], 16).expect("Invalid hex digit in input string");
+        let byte = u8::from_str_radix(&clean_input[0..1], 16).expect("");
         data.push(byte);
         1
     } else {
@@ -27,10 +26,7 @@ pub fn hex_string_to_byte_array(input: &str) -> Vec<u8> {
     };
 
     for i in (start_idx..len).step_by(2) {
-        data.push(
-            u8::from_str_radix(&clean_input[i..i + 2], 16)
-                .expect("Invalid hex digit in input string"),
-        );
+        data.push(u8::from_str_radix(&clean_input[i..i + 2], 16).expect(""));
     }
 
     data
@@ -40,12 +36,12 @@ pub fn clean_hex_prefix(input: &str) -> &str {
     input.strip_prefix("0x").unwrap_or(input)
 }
 
-pub fn sha256<D: Sha256Digest>(input: D) -> String {
+pub fn sha256(input: String) -> String {
     format!("0x{}", digest(input))
 }
 
-pub fn keccak256(input: &str) -> String {
-    format!("0x{:x}", Keccak256::digest(input))
+pub fn sha256_from_bytes(bytes: &[u8]) -> String {
+    format!("0x{}", digest(bytes))
 }
 
 #[cfg(test)]
@@ -104,13 +100,5 @@ mod tests {
             "0xb33845db05fb0822f1f1e3677cc6787b8a1a7a21f3c12f9e97c70cb596222218",
             sha256(String::from("utf8String"))
         )
-    }
-
-    #[test]
-    fn get_keccak256_digest() {
-        assert_eq!(
-            "0x234b7550275b36696569d306216e035df78db522674abecff884c64e7558ef17",
-            keccak256("utf8String")
-        );
     }
 }
