@@ -153,6 +153,7 @@ pub fn download_file(url: &str, parent_dir: &str, filename: &str) -> Option<Path
 ///
 /// ```rust
 /// use tee_worker_pre_compute::compute::utils::file_utils::download_from_url;
+///
 /// if let Some(bytes) = download_from_url("https://httpbin.org/json/test.json") {
 ///     println!("Downloaded {} bytes", bytes.len());
 /// } else {
