@@ -65,8 +65,10 @@ impl PreComputeAppTrait for PreComputeApp {
     /// # Example
     ///
     /// ```rust
+    /// use tee_worker_pre_compute::compute::pre_compute_app::{PreComputeApp, PreComputeAppTrait};
+    ///
     /// let mut app = PreComputeApp::new("task_id".to_string());
-    /// app.run()?;
+    /// app.run();
     /// ```
     fn run(&mut self) -> Result<(), ReplicateStatusCause> {
         self.pre_compute_args = PreComputeArgs::read_args()?;
