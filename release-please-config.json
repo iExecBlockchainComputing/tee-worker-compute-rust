@@ -3,11 +3,16 @@
   "draft-pull-request": true,
   "include-component-in-tag": false,
   "include-v-in-tag": true,
+  "separate-pull-requests": false,
+  "release-type": "rust",
   "packages": {
-    ".": {
-      "release-type": "rust",
-      "changelog-path": "CHANGELOG.md"
+    "post-compute": {
+      "component": "post-compute",
+      "package-name": "tee-worker-post-compute"
+    },
+    "pre-compute": {
+      "component": "pre-compute",
+      "package-name": "tee-worker-pre-compute"
     }
   }
 }
-
