@@ -1,9 +1,10 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "always-update": true,
   "draft-pull-request": true,
+  "separate-pull-requests": true,
   "include-component-in-tag": true,
   "include-v-in-tag": true,
-  "separate-pull-requests": false,
   "release-type": "rust",
   "packages": {
     "post-compute": {
@@ -14,5 +15,13 @@
       "component": "pre-compute",
       "package-name": "tee-worker-pre-compute"
     }
-  }
+  },
+  "changelog-path": "CHANGELOG.md",
+  "changelog-sections": [
+    {
+      "type": "ci",
+      "section": "🧰 Others",
+      "hidden": false
+    }
+  ]
 }
