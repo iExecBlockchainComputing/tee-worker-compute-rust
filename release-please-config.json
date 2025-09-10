@@ -4,16 +4,15 @@
   "include-component-in-tag": true,
   "include-v-in-tag": true,
   "separate-pull-requests": false,
+  "release-type": "rust",
   "packages": {
     "post-compute": {
       "component": "post-compute",
-      "package-name": "tee-worker-post-compute",
-      "release-type": "rust"
+      "package-name": "tee-worker-post-compute"
     },
     "pre-compute": {
       "component": "pre-compute",
-      "package-name": "tee-worker-pre-compute",
-      "release-type": "rust"
+      "package-name": "tee-worker-pre-compute"
     }
   }
 }

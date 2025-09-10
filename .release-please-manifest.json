@@ -1,1 +1,4 @@
-{}
+{
+    "post-compute": "0.0.0",
+    "pre-compute": "0.0.0"
+}
