@@ -16,12 +16,5 @@
       "package-name": "tee-worker-pre-compute"
     }
   },
-  "changelog-path": "CHANGELOG.md",
-  "changelog-sections": [
-    {
-      "type": "ci",
-      "section": "🧰 Others",
-      "hidden": false
-    }
-  ]
+  "changelog-path": "CHANGELOG.md"
 }
