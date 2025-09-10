@@ -16,6 +16,5 @@
       "package-name": "tee-worker-pre-compute",
       "release-type": "rust"
     }
-  },
-  "changelog-path": "CHANGELOG.md"
+  }
 }
