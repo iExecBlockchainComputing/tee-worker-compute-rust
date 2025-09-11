@@ -1,0 +1,72 @@
+name: Build and Push Release Image
+
+on:
+  push:
+    tags:
+      - 'tee-worker-post-compute-v*.*.*'
+      - 'tee-worker-pre-compute-v*.*.*'
+
+jobs:
+  prepare:
+    name: Determine image tag
+    runs-on: ubuntu-latest
+    outputs:
+      dockerfile: ${{ steps.determine-tag.outputs.dockerfile }}
+      image_name: ${{ steps.determine-tag.outputs.image_name }}
+      image_tag: ${{ steps.determine-tag.outputs.image_tag }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine Docker tag based on Git ref
+        id: determine-tag
+        run: |
+          # Since this workflow only triggers on tags matching 'v*.*.*' we know we're always dealing with a version tag
+          TAG_ON_MAIN=$(git branch -r --contains ${{ github.sha }} 'origin/main')
+
+          if [ -z "$TAG_ON_MAIN" ] ; then
+            echo "Error: Tag ${{ github.ref_name }} is not on main branch"
+            echo "Tags must be created on main branch to generate X.Y.Z image tags"
+            exit 1
+          fi
+
+          GITHUB_REF_NAME="${{ github.ref_name }}"
+          echo "Processing tag on main branch: ${{ github.ref_name }}"
+
+          case "$GITHUB_REF_NAME" in
+            tee-worker-post-compute-v*)
+              echo "dockerfile=post-compute/Dockerfile" | tee -a $GITHUB_OUTPUT
+              echo "image_name=tee-worker-post-compute-rust" | tee -a $GITHUB_OUTPUT
+              echo "image_tag=${GITHUB_REF_NAME#tee-worker-post-compute-v}" | tee -a $GITHUB_OUTPUT
+            ;;
+            tee-worker-pre-compute-v*)
+              echo "dockerfile=pre-compute/Dockerfile" | tee -a $GITHUB_OUTPUT
+              echo "image_name=tee-worker-pre-compute-rust" | tee -a $GITHUB_OUTPUT
+              echo "image_tag=${GITHUB_REF_NAME#tee-worker-pre-compute-v}" | tee -a $GITHUB_OUTPUT
+            ;;
+            *)
+              echo "Error: Unsupported tag ${{ github.ref_name }}"
+              exit 1
+            ;;
+          esac
+
+  build-oci-image:
+    name: Build OCI image
+    needs: prepare
+    uses: iExecBlockchainComputing/github-actions-workflows/.github/workflows/docker-build.yml@docker-build-v2.4.0
+    with:
+      image-name: docker-regis.iex.ec/${{ needs.prepare.outputs.image_name }}
+      image-tag: ${{ needs.prepare.outputs.image_tag }}
+      dockerfile: ${{ needs.prepare.outputs.dockerfile }}
+      context: .
+      registry: docker-regis.iex.ec
+      push: true
+      security-scan: true
+      security-report: "sarif"
+      hadolint: true
+      platforms: linux/amd64
+    secrets:
+      username: ${{ secrets.NEXUS_USERNAME }}
+      password: ${{ secrets.NEXUS_PASSWORD }}
