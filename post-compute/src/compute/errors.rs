@@ -15,8 +15,6 @@ pub enum ReplicateStatusCause {
     PostComputeEncryptionPublicKeyMissing,
     #[error("Unexpected error occurred")]
     PostComputeFailedUnknownIssue,
-    #[error("Invalid enclave challenge private key")]
-    PostComputeInvalidEnclaveChallengePrivateKey,
     #[error("Invalid TEE signature")]
     PostComputeInvalidTeeSignature,
     #[error("Failed to upload to IPFS")]
