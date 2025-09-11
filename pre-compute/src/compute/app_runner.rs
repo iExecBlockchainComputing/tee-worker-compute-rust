@@ -42,17 +42,16 @@ pub fn start_with_app<A: PreComputeAppTrait>(
     pre_compute_app: &mut A,
     chain_task_id: &str,
 ) -> ExitMode {
-    let exit_cause = ReplicateStatusCause::PreComputeFailedUnknownIssue;
-
-    match pre_compute_app.run() {
+    let exit_cause = match pre_compute_app.run() {
         Ok(_) => {
             info!("TEE pre-compute completed");
             return ExitMode::Success;
         }
         Err(exit_cause) => {
             error!("TEE pre-compute failed with known exit cause [{exit_cause:?}]");
+            exit_cause
         }
-    }
+    };
 
     let authorization = match get_challenge(chain_task_id) {
         Ok(auth) => auth,
@@ -232,7 +231,7 @@ mod pre_compute_start_with_app_tests {
     async fn start_succeeds_when_send_exit_cause_api_success() {
         let mock_server = MockServer::start().await;
 
-        let expected_cause_enum = ReplicateStatusCause::PreComputeFailedUnknownIssue;
+        let expected_cause_enum = ReplicateStatusCause::PreComputeOutputFolderNotFound;
         let expected_exit_message_payload = json!({
             "cause": expected_cause_enum // Relies on ReplicateStatusCause's Serialize impl
         });
@@ -242,6 +241,7 @@ mod pre_compute_start_with_app_tests {
             .and(path(format!("/compute/pre/{CHAIN_TASK_ID}/exit")))
             .and(body_json(expected_exit_message_payload))
             .respond_with(ResponseTemplate::new(200))
+            .expect(1)
             .mount(&mock_server)
             .await;
 
@@ -249,7 +249,8 @@ mod pre_compute_start_with_app_tests {
 
         let mut mock = MockPreComputeAppTrait::new();
         mock.expect_run()
-            .returning(|| Err(ReplicateStatusCause::PreComputeTeeChallengePrivateKeyMissing));
+            .times(1)
+            .returning(|| Err(ReplicateStatusCause::PreComputeOutputFolderNotFound));
 
         // Move the blocking operations into spawn_blocking
         let result_code = tokio::task::spawn_blocking(move || {
@@ -266,15 +267,16 @@ mod pre_compute_start_with_app_tests {
                 (IS_DATASET_REQUIRED, Some("false")),
             ];
 
-            temp_env::with_vars(env_vars, start)
+            temp_env::with_vars(env_vars, || start_with_app(&mut mock, CHAIN_TASK_ID))
         })
         .await
         .expect("Blocking task panicked");
 
+        mock_server.verify().await;
         assert_eq!(
             result_code,
             ExitMode::ReportedFailure,
-            "Should return 1 if sending exit cause to worker API succeeds"
+            "Should return ExitMode::ReportedFailure if sending exit cause to worker API succeeds"
         );
     }
 }
