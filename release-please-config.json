@@ -16,5 +16,10 @@
       "package-name": "tee-worker-pre-compute",
       "release-type": "rust"
     }
-  }
+  },
+  "plugins": [
+    {
+      "type": "cargo-workspace"
+    }
+  ]
 }
