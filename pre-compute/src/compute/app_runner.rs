@@ -267,7 +267,7 @@ mod pre_compute_start_with_app_tests {
                 (IS_DATASET_REQUIRED, Some("false")),
             ];
 
-            temp_env::with_vars(env_vars, || start_with_app(&mut mock, CHAIN_TASK_ID))
+            temp_env::with_vars(env_vars, move || start_with_app(&mut mock, CHAIN_TASK_ID))
         })
         .await
         .expect("Blocking task panicked");
