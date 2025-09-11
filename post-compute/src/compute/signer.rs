@@ -27,7 +27,7 @@ use alloy_signer_local::PrivateKeySigner;
 /// # Errors
 ///
 /// This function will return an error in the following situations:
-/// * The provided private key cannot be parsed as a valid `PrivateKeySigner` (returns `PostComputeInvalidEnclaveChallengePrivateKey`)
+/// * The provided private key cannot be parsed as a valid `PrivateKeySigner` (returns `PostComputeInvalidTeeSignature`)
 /// * The signing operation fails (returns `PostComputeInvalidTeeSignature`)
 ///
 /// # Example
@@ -49,7 +49,7 @@ pub fn sign_enclave_challenge(
 ) -> Result<String, ReplicateStatusCause> {
     let signer: PrivateKeySigner = enclave_challenge_private_key
         .parse::<PrivateKeySigner>()
-        .map_err(|_| ReplicateStatusCause::PostComputeInvalidEnclaveChallengePrivateKey)?;
+        .map_err(|_| ReplicateStatusCause::PostComputeInvalidTeeSignature)?;
 
     let signature: Signature = signer
         .sign_message_sync(&hex_string_to_byte_array(message_hash))
@@ -144,7 +144,7 @@ mod tests {
         assert!(
             matches!(
                 result,
-                Err(err) if err == ReplicateStatusCause::PostComputeInvalidEnclaveChallengePrivateKey
+                Err(err) if err == ReplicateStatusCause::PostComputeInvalidTeeSignature
             ),
             "Should return missing TEE challenge private key error"
         );
