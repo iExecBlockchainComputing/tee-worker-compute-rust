@@ -17,8 +17,8 @@ jobs:
 
   prepare:
     name: Determine image tag
-    runs-on: ubuntu-latest
     needs: build-and-test
+    runs-on: ubuntu-latest
     if: |
       github.ref_name == 'main' ||
       startsWith(github.head_ref, 'feature/') ||
@@ -27,7 +27,7 @@ jobs:
     outputs:
       image_tag: ${{ steps.determine-tag.outputs.image_tag }}
     steps:
-      - name: Determine Docker tag based on Git ref
+      - name: Determine base tag
         id: determine-tag
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ] ; then
@@ -45,14 +45,17 @@ jobs:
             echo "image_tag=feature-${SHORT_SHA}" | tee -a $GITHUB_OUTPUT
           fi
 
-  post-compute-oci-image:
-    name: post-compute OCI image
+  build-oci-image:
+    name: Build OCI images
     needs: prepare
+    strategy:
+      matrix:
+        package: [post-compute, pre-compute]
     uses: iExecBlockchainComputing/github-actions-workflows/.github/workflows/docker-build.yml@docker-build-v2.4.0
     with:
-      image-name: docker-regis.iex.ec/tee-worker-post-compute-rust
+      image-name: docker-regis.iex.ec/tee-worker-${{ matrix.package }}-rust
       image-tag: ${{ needs.prepare.outputs.image_tag }}
-      dockerfile: post-compute/Dockerfile
+      dockerfile: ${{ matrix.package }}/Dockerfile
       context: .
       registry: docker-regis.iex.ec
       push: true
@@ -64,21 +67,55 @@ jobs:
       username: ${{ secrets.NEXUS_USERNAME }}
       password: ${{ secrets.NEXUS_PASSWORD }}
 
-  pre-compute-oci-image:
-    name: pre-compute OCI image
-    needs: prepare
-    uses: iExecBlockchainComputing/github-actions-workflows/.github/workflows/docker-build.yml@docker-build-v2.4.0
-    with:
-      image-name: docker-regis.iex.ec/tee-worker-pre-compute-rust
-      image-tag: ${{ needs.prepare.outputs.image_tag }}
-      dockerfile: pre-compute/Dockerfile
-      context: .
-      registry: docker-regis.iex.ec
-      push: true
-      security-scan: true
-      security-report: "sarif"
-      hadolint: true
-      platforms: linux/amd64
-    secrets:
-      username: ${{ secrets.NEXUS_USERNAME }}
-      password: ${{ secrets.NEXUS_PASSWORD }}
+  build-tee-image:
+    name: Build TEE images
+    needs: [prepare, build-oci-image]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        sconify_image:
+          - name: registry.scontain.com/scone-debug/iexec-sconify-image-unlocked
+            version: 5.9.1
+        tee_worker:
+          - binary: /app/tee-worker-post-compute
+            img_from: docker-regis.iex.ec/tee-worker-post-compute-rust
+            img_to: docker-regis.iex.ec/tee-worker-post-compute-rust-unlocked
+          - binary: /app/tee-worker-pre-compute
+            img_from: docker-regis.iex.ec/tee-worker-pre-compute-rust
+            img_to: docker-regis.iex.ec/tee-worker-pre-compute-rust-unlocked
+    steps:
+      - name: Login to Scontain registry
+        uses: docker/login-action@v3
+        with:
+          registry: registry.scontain.com
+          username: ${{ secrets.SCONTAIN_REGISTRY_USERNAME }}
+          password: ${{ secrets.SCONTAIN_REGISTRY_PAT }}
+      - name: Login to Docker regis
+        uses: docker/login-action@v3
+        with:
+          registry: docker-regis.iex.ec
+          username: ${{ secrets.NEXUS_USERNAME }}
+          password: ${{ secrets.NEXUS_PASSWORD }}
+      - name: Pull sconification tools
+        run: docker pull ${{ matrix.sconify_image.name }}:${{ matrix.sconify_image.version }}
+      - name: Pull native image
+        run: docker pull ${{ matrix.tee_worker.img_from }}:${{ needs.prepare.outputs.image_tag }}
+      - name: Sconify
+        run: |
+          IMG_FROM=${{ matrix.tee_worker.img_from }}:${{ needs.prepare.outputs.image_tag }}
+          IMG_TO=${{ matrix.tee_worker.img_to }}:${{ needs.prepare.outputs.image_tag }}-sconify-${{ matrix.sconify_image.version }}-debug
+          SCONE_IMAGE=${{ matrix.sconify_image.name }}:${{ matrix.sconify_image.version }}
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock $SCONE_IMAGE \
+            sconify_iexec --cli=$SCONE_IMAGE --crosscompiler=$SCONE_IMAGE \
+              --base=alpine:3.22 --from=$IMG_FROM --to=$IMG_TO --binary=${{ matrix.tee_worker.binary }} \
+              --heap=1G --stack=8M --host-path=/etc/hosts --host-path=/etc/resolv.conf --no-color --verbose
+          echo
+          docker run --rm -e SCONE_HASH=1 $IMG_TO
+      - name: Push TEE image
+        run: docker push ${{ matrix.tee_worker.img_to }}:${{ needs.prepare.outputs.image_tag }}-sconify-${{ matrix.sconify_image.version }}-debug
+      - name: Clean OCI images
+        run: |
+          docker image rm -f \
+            ${{ matrix.tee_worker.img_from }}:${{ needs.prepare.outputs.image_tag }} \
+            ${{ matrix.tee_worker.img_to }}:${{ needs.prepare.outputs.image_tag }}-sconify-${{ matrix.sconify_image.version }}-debug \
+            ${{ matrix.sconify_image.name }}:${{ matrix.sconify_image.version }}

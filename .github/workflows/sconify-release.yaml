@@ -1,0 +1,94 @@
+name: Sconify and push TEE image
+
+on:
+  workflow_dispatch:
+    inputs:
+      sconify_version:
+        default: 5.9.1-v16
+        required: true
+
+jobs:
+  prepare:
+    name: Determine image tag
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    outputs:
+      binary: ${{ steps.determine-tag.outputs.binary }}
+      image_name: ${{ steps.determine-tag.outputs.image_name }}
+      image_tag: ${{ steps.determine-tag.outputs.image_tag }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine base tag
+        id: determine-tag
+        run: |
+          TAG_ON_MAIN=$(git branch -r --contains ${{ github.sha }} 'origin/main')
+
+          if [ -z "$TAG_ON_MAIN" ] ; then
+            echo "Error: Tag ${{ github.ref_name }} is not on main branch"
+            echo "Tags must be created on main branch to generate X.Y.Z image tags"
+            exit 1
+          fi
+
+          GITHUB_REF_NAME="${{ github.ref_name }}"
+          echo "Processing tag on main branch: ${{ github.ref_name }}"
+
+          case "$GITHUB_REF_NAME" in
+            tee-worker-post-compute-v*)
+              echo "binary=/app/tee-worker-post-compute" | tee -a $GITHUB_OUTPUT
+              echo "image_name=tee-worker-post-compute-rust" | tee -a $GITHUB_OUTPUT
+              echo "image_tag=${GITHUB_REF_NAME#tee-worker-post-compute-v}" | tee -a $GITHUB_OUTPUT
+            ;;
+            tee-worker-pre-compute-v*)
+              echo "binary=/app/tee-worker-pre-compute" | tee -a $GITHUB_OUTPUT
+              echo "image_name=tee-worker-pre-compute-rust" | tee -a $GITHUB_OUTPUT
+              echo "image_tag=${GITHUB_REF_NAME#tee-worker-pre-compute-v}" | tee -a $GITHUB_OUTPUT
+            ;;
+            *)
+              echo "Error: Unsupported tag ${{ github.ref_name }}"
+              exit 1
+            ;;
+          esac
+
+  build-tee-image:
+    name: Sconify TEE image
+    needs: prepare
+    runs-on: ubuntu-latest
+    env:
+      IMG_FROM: docker-regis.iex.ec/${{ needs.prepare.outputs.image_name }}:${{ needs.prepare.outputs.image_tag }}
+      IMG_TO: docker-regis.iex.ec/${{ needs.prepare.outputs.image_name }}:${{ needs.prepare.outputs.image_tag }}-sconify-${{ inputs.sconify_version }}-production
+      SCONIFY_IMAGE: registry.scontain.com/scone-production/iexec-sconify-image:${{ inputs.sconify_version }}
+    steps:
+      - name: Login to Scontain registry
+        uses: docker/login-action@v3
+        with:
+          registry: registry.scontain.com
+          username: ${{ secrets.SCONTAIN_REGISTRY_USERNAME }}
+          password: ${{ secrets.SCONTAIN_REGISTRY_PAT }}
+      - name: Login to Docker regis
+        uses: docker/login-action@v3
+        with:
+          registry: docker-regis.iex.ec
+          username: ${{ secrets.NEXUS_USERNAME }}
+          password: ${{ secrets.NEXUS_PASSWORD }}
+      - name: Pull sconification tools
+        run: docker pull ${{ env.SCONIFY_IMAGE }}
+      - name: Pull native image
+        run: docker pull ${{ env.IMG_FROM }}
+      - name: Sconify
+        run: |
+          echo "${{ secrets.SCONIFY_SIGNING_PRIVATE_KEY }}" > ${{ github.workspace }}/sig.pem
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v ${{ github.workspace }}/sig.pem:/sig.pem ${{ env.SCONIFY_IMAGE }} \
+            sconify_iexec --cli=${{ env.SCONIFY_IMAGE }} --crosscompiler=${{ env.SCONIFY_IMAGE }} \
+              --base=alpine:3.22 --from=${{ env.IMG_FROM }} --to=${{ env.IMG_TO }} --binary=${{ needs.prepare.outputs.binary }} \
+              --heap=1G --stack=8M --host-path=/etc/hosts --host-path=/etc/resolv.conf --no-color --verbose \
+              --scone-signer=/sig.pem
+          echo
+          docker run --rm -e SCONE_HASH=1 ${{ env.IMG_TO }}
+      - name: Push TEE image
+        run: docker push ${{ env.IMG_TO }}
+      - name: Clean OCI images
+        run: docker image rm -f ${{ env.IMG_FROM }} ${{ env.IMG_TO }} ${{ env.SCONIFY_IMAGE }}

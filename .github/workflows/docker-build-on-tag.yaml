@@ -20,7 +20,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Determine Docker tag based on Git ref
+      - name: Determine base tag
         id: determine-tag
         run: |
           # Since this workflow only triggers on tags matching 'v*.*.*' we know we're always dealing with a version tag
