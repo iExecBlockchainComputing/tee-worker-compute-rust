@@ -1,5 +1,7 @@
-use crate::compute::utils::hash_utils::{concatenate_and_hash, sha256};
-use crate::compute::{computed_file::ComputedFile, utils::hash_utils::keccak256};
+use crate::compute::{
+    computed_file::ComputedFile,
+    utils::hash_utils::{concatenate_and_hash, sha256},
+};
 use log::error;
 use std::{
     fs::{self, DirEntry},
@@ -62,7 +64,7 @@ pub fn compute_web3_result_digest(computed_file: &ComputedFile) -> String {
         }
     };
 
-    keccak256(callback_data)
+    concatenate_and_hash(&[callback_data])
 }
 
 /// Computes the result digest for web2 tasks using SHA256 hashing of output files.
@@ -299,7 +301,7 @@ mod tests {
 
         assert_eq!(
             result,
-            "0xcb371be217faa47dab94e0d0ff0840c6cbf41645f0dc1a6ae3f34447155a76f3"
+            "0xb10e2d527612073b26eecdfd717e6a320cf44b4afac2b0732d9fcbe2b7fa0cf6"
         );
     }
 
