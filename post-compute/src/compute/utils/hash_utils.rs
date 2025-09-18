@@ -44,10 +44,6 @@ pub fn sha256<D: Sha256Digest>(input: D) -> String {
     format!("0x{}", digest(input))
 }
 
-pub fn keccak256(input: &str) -> String {
-    format!("0x{:x}", Keccak256::digest(input))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -104,13 +100,5 @@ mod tests {
             "0xb33845db05fb0822f1f1e3677cc6787b8a1a7a21f3c12f9e97c70cb596222218",
             sha256(String::from("utf8String"))
         )
-    }
-
-    #[test]
-    fn get_keccak256_digest() {
-        assert_eq!(
-            "0x234b7550275b36696569d306216e035df78db522674abecff884c64e7558ef17",
-            keccak256("utf8String")
-        );
     }
 }

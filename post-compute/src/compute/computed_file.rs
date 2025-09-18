@@ -161,7 +161,7 @@ pub fn read_computed_file(
 ///
 /// let mut computed_file = ComputedFile {
 ///     task_id: Some("0x123".to_string()),
-///     callback_data: Some("0xabc...".to_string()),
+///     callback_data: Some("0x0000000000000000000000000000000000000000000000000000000000000001".to_string()),
 ///     deterministic_output_path: None,
 ///     result_digest: None,
 ///     enclave_signature: None,
@@ -170,7 +170,13 @@ pub fn read_computed_file(
 ///
 /// // For a web3 callback task
 /// match build_result_digest_in_computed_file(&mut computed_file, true) {
-///     Ok(()) => println!("Result digest: {:?}", computed_file.result_digest),
+///     Ok(()) => {
+///         assert_eq!(
+///             computed_file.result_digest,
+///             Some("0xb10e2d527612073b26eecdfd717e6a320cf44b4afac2b0732d9fcbe2b7fa0cf6".to_string())
+///         );
+///         println!("Result digest: {:?}", computed_file.result_digest);
+///     },
 ///     Err(e) => eprintln!("Error computing digest: {:?}", e),
 /// }
 /// ```
@@ -442,7 +448,7 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(
             computed_file.result_digest,
-            Some("0xcb371be217faa47dab94e0d0ff0840c6cbf41645f0dc1a6ae3f34447155a76f3".to_string())
+            Some("0xb10e2d527612073b26eecdfd717e6a320cf44b4afac2b0732d9fcbe2b7fa0cf6".to_string())
         );
     }
 
