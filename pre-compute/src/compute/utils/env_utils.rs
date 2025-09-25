@@ -2,6 +2,11 @@ use crate::compute::errors::ReplicateStatusCause;
 use std::env;
 
 pub enum TeeSessionEnvironmentVariable {
+    BulkSize,
+    BulkDatasetUrl(usize),
+    BulkDatasetChecksum(usize),
+    BulkDatasetFilename(usize),
+    BulkDatasetKey(usize),
     IexecDatasetChecksum,
     IexecDatasetFilename,
     IexecDatasetKey,
@@ -19,6 +24,19 @@ pub enum TeeSessionEnvironmentVariable {
 impl TeeSessionEnvironmentVariable {
     pub fn name(&self) -> String {
         match self {
+            TeeSessionEnvironmentVariable::BulkSize => "BULK_SIZE".to_string(),
+            TeeSessionEnvironmentVariable::BulkDatasetUrl(index) => {
+                format!("BULK_DATASET_{index}_URL")
+            }
+            TeeSessionEnvironmentVariable::BulkDatasetChecksum(index) => {
+                format!("BULK_DATASET_{index}_CHECKSUM")
+            }
+            TeeSessionEnvironmentVariable::BulkDatasetFilename(index) => {
+                format!("BULK_DATASET_{index}_FILENAME")
+            }
+            TeeSessionEnvironmentVariable::BulkDatasetKey(index) => {
+                format!("BULK_DATASET_{index}_KEY")
+            }
             TeeSessionEnvironmentVariable::IexecDatasetChecksum => {
                 "IEXEC_DATASET_CHECKSUM".to_string()
             }
