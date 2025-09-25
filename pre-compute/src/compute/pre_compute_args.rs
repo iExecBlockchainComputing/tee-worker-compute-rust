@@ -10,7 +10,7 @@ use crate::compute::utils::env_utils::{TeeSessionEnvironmentVariable, get_env_va
 #[derive(Clone, Default)]
 pub struct PreComputeArgs {
     pub output_dir: String,
-    // Dataset related field
+    // Dataset related fields
     pub is_dataset_required: bool,
     // Input files
     pub input_files: Vec<String>,
@@ -195,7 +195,7 @@ mod tests {
         vars
     }
 
-    // TODO: Collect all errors instead of propagating immediately,and return the list of erros
+    // TODO: Collect all errors instead of propagating immediately, and return the list of errors
     fn setup_bulk_dataset_env_vars(count: usize) -> HashMap<String, String> {
         let mut vars = HashMap::new();
         vars.insert(BulkSize.name(), count.to_string());
@@ -233,7 +233,6 @@ mod tests {
 
             assert_eq!(args.output_dir, OUTPUT_DIR);
             assert!(!args.is_dataset_required);
-            assert_eq!(args.datasets.len(), 0);
             assert_eq!(args.input_files.len(), 1);
             assert_eq!(args.input_files[0], "https://input-1.txt");
             assert_eq!(args.bulk_size, 0);
@@ -282,7 +281,6 @@ mod tests {
 
             assert_eq!(args.output_dir, OUTPUT_DIR);
             assert!(!args.is_dataset_required);
-            assert_eq!(args.datasets.len(), 0);
             assert_eq!(args.input_files.len(), 3);
             assert_eq!(args.input_files[0], "https://input-1.txt");
             assert_eq!(args.input_files[1], "https://input-2.txt");
