@@ -56,6 +56,7 @@ impl PreComputeAppTrait for PreComputeApp {
     /// app.run();
     /// ```
     fn run(&mut self) -> Result<(), ReplicateStatusCause> {
+        // TODO: Collect all errors instead of propagating immediately,and return the list of erros
         self.pre_compute_args = PreComputeArgs::read_args()?;
         self.check_output_folder()?;
         for dataset in &self.pre_compute_args.datasets {

@@ -195,6 +195,7 @@ mod tests {
         vars
     }
 
+    // TODO: Collect all errors instead of propagating immediately,and return the list of erros
     fn setup_bulk_dataset_env_vars(count: usize) -> HashMap<String, String> {
         let mut vars = HashMap::new();
         vars.insert(BulkSize.name(), count.to_string());
