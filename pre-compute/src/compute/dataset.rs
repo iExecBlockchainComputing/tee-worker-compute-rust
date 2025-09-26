@@ -20,10 +20,10 @@ const IPFS_GATEWAYS: &[&str] = &[
 const AES_KEY_LENGTH: usize = 32;
 const AES_IV_LENGTH: usize = 16;
 
-/// Represents a dataset for bulk processing in a Trusted Execution Environment (TEE).
+/// Represents a dataset in a Trusted Execution Environment (TEE).
 ///
 /// This structure contains all the information needed to download, verify, and decrypt
-/// a single dataset as part of bulk processing.
+/// a single dataset.
 #[cfg_attr(test, derive(Debug))]
 #[derive(Clone, Default)]
 pub struct Dataset {
@@ -72,7 +72,7 @@ impl Dataset {
                     info!("Successfully downloaded from {full_url}");
                     Some(content)
                 } else {
-                    info!("Failed to download from {full_url}");
+                    error!("Failed to download from {full_url}");
                     None
                 }
             })
