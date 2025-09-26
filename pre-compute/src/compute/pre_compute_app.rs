@@ -1,37 +1,22 @@
 use crate::compute::errors::ReplicateStatusCause;
 use crate::compute::pre_compute_args::PreComputeArgs;
-use crate::compute::utils::file_utils::{download_file, download_from_url, write_file};
-use crate::compute::utils::hash_utils::{sha256, sha256_from_bytes};
-use aes::Aes256;
-use base64::{Engine as _, engine::general_purpose};
-use cbc::{
-    Decryptor,
-    cipher::{BlockDecryptMut, KeyIvInit, block_padding::Pkcs7},
-};
+use crate::compute::utils::file_utils::{download_file, write_file};
+use crate::compute::utils::hash_utils::sha256;
 use log::{error, info};
 #[cfg(test)]
 use mockall::automock;
-use multiaddr::Multiaddr;
 use std::path::{Path, PathBuf};
-use std::str::FromStr;
-
-type Aes256CbcDec = Decryptor<Aes256>;
-const IPFS_GATEWAYS: &[&str] = &[
-    "https://ipfs-gateway.v8-bellecour.iex.ec",
-    "https://gateway.ipfs.io",
-    "https://gateway.pinata.cloud",
-];
-const AES_KEY_LENGTH: usize = 32;
-const AES_IV_LENGTH: usize = 16;
 
 #[cfg_attr(test, automock)]
 pub trait PreComputeAppTrait {
     fn run(&mut self) -> Result<(), ReplicateStatusCause>;
     fn check_output_folder(&self) -> Result<(), ReplicateStatusCause>;
     fn download_input_files(&self) -> Result<(), ReplicateStatusCause>;
-    fn download_encrypted_dataset(&self) -> Result<Vec<u8>, ReplicateStatusCause>;
-    fn decrypt_dataset(&self, encrypted_content: &[u8]) -> Result<Vec<u8>, ReplicateStatusCause>;
-    fn save_plain_dataset_file(&self, plain_content: &[u8]) -> Result<(), ReplicateStatusCause>;
+    fn save_plain_dataset_file(
+        &self,
+        plain_content: &[u8],
+        plain_dataset_filename: &str,
+    ) -> Result<(), ReplicateStatusCause>;
 }
 
 pub struct PreComputeApp {
@@ -71,12 +56,13 @@ impl PreComputeAppTrait for PreComputeApp {
     /// app.run();
     /// ```
     fn run(&mut self) -> Result<(), ReplicateStatusCause> {
+        // TODO: Collect all errors instead of propagating immediately, and return the list of errors
         self.pre_compute_args = PreComputeArgs::read_args()?;
         self.check_output_folder()?;
-        if self.pre_compute_args.is_dataset_required {
-            let encrypted_content = self.download_encrypted_dataset()?;
-            let plain_content = self.decrypt_dataset(&encrypted_content)?;
-            self.save_plain_dataset_file(&plain_content)?;
+        for dataset in &self.pre_compute_args.datasets {
+            let encrypted_content = dataset.download_encrypted_dataset(&self.chain_task_id)?;
+            let plain_content = dataset.decrypt_dataset(&encrypted_content)?;
+            self.save_plain_dataset_file(&plain_content, &dataset.filename)?;
         }
         self.download_input_files()?;
         Ok(())
@@ -134,88 +120,6 @@ impl PreComputeAppTrait for PreComputeApp {
         Ok(())
     }
 
-    /// Downloads the encrypted dataset file from a URL or IPFS multi-address, and verifies its checksum.
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(Vec<u8>)` containing the dataset's encrypted content if download and verification succeed.
-    /// * `Err(ReplicateStatusCause::PreComputeDatasetDownloadFailed)` if the download fails or inputs are missing.
-    /// * `Err(ReplicateStatusCause::PreComputeInvalidDatasetChecksum)` if checksum validation fails.
-    fn download_encrypted_dataset(&self) -> Result<Vec<u8>, ReplicateStatusCause> {
-        let args = &self.pre_compute_args;
-        let chain_task_id = &self.chain_task_id;
-        let encrypted_dataset_url: &str = &args.encrypted_dataset_url;
-
-        info!(
-            "Downloading encrypted dataset file [chainTaskId:{chain_task_id}, url:{encrypted_dataset_url}]",
-        );
-
-        let encrypted_content = if is_multi_address(encrypted_dataset_url) {
-            IPFS_GATEWAYS.iter().find_map(|gateway| {
-                let full_url = format!("{gateway}{encrypted_dataset_url}");
-                info!("Attempting to download dataset from {full_url}");
-
-                if let Some(content) = download_from_url(&full_url) {
-                    info!("Successfully downloaded from {full_url}");
-                    Some(content)
-                } else {
-                    info!("Failed to download from {full_url}");
-                    None
-                }
-            })
-        } else {
-            download_from_url(encrypted_dataset_url)
-        }
-        .ok_or(ReplicateStatusCause::PreComputeDatasetDownloadFailed)?;
-
-        info!("Checking encrypted dataset checksum [chainTaskId:{chain_task_id}]");
-        let expected_checksum: &str = &args.encrypted_dataset_checksum;
-        let actual_checksum = sha256_from_bytes(&encrypted_content);
-
-        if actual_checksum != expected_checksum {
-            error!(
-                "Invalid dataset checksum [chainTaskId:{chain_task_id}, expected:{expected_checksum}, actual:{actual_checksum}]"
-            );
-            return Err(ReplicateStatusCause::PreComputeInvalidDatasetChecksum);
-        }
-
-        info!("Dataset downloaded and verified successfully.");
-        Ok(encrypted_content)
-    }
-
-    /// Decrypts the provided encrypted dataset bytes using AES-CBC.
-    ///
-    /// The first 16 bytes of `encrypted_content` are treated as the IV.
-    /// The rest is the ciphertext. The decryption key is decoded from a Base64 string.
-    ///
-    /// # Arguments
-    ///
-    /// * `encrypted_content` - Full encrypted dataset, including the IV prefix.
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(Vec<u8>)` containing the plaintext dataset if decryption succeeds.
-    /// * `Err(ReplicateStatusCause::PreComputeDatasetDecryptionFailed)` if the key is missing, decoding fails, or decryption fails.
-    fn decrypt_dataset(&self, encrypted_content: &[u8]) -> Result<Vec<u8>, ReplicateStatusCause> {
-        let base64_key: &str = &self.pre_compute_args.encrypted_dataset_base64_key;
-
-        let key = general_purpose::STANDARD
-            .decode(base64_key)
-            .map_err(|_| ReplicateStatusCause::PreComputeDatasetDecryptionFailed)?;
-
-        if encrypted_content.len() < AES_IV_LENGTH || key.len() != AES_KEY_LENGTH {
-            return Err(ReplicateStatusCause::PreComputeDatasetDecryptionFailed);
-        }
-
-        let key_slice = &key[..AES_KEY_LENGTH];
-        let iv_slice = &encrypted_content[..AES_IV_LENGTH];
-        let ciphertext = &encrypted_content[AES_IV_LENGTH..];
-
-        Aes256CbcDec::new(key_slice.into(), iv_slice.into())
-            .decrypt_padded_vec_mut::<Pkcs7>(ciphertext)
-            .map_err(|_| ReplicateStatusCause::PreComputeDatasetDecryptionFailed)
-    }
-
     /// Saves the decrypted (plain) dataset to disk in the configured output directory.
     ///
     /// The output filename is taken from `pre_compute_args.plain_dataset_filename`.
@@ -228,11 +132,14 @@ impl PreComputeAppTrait for PreComputeApp {
     ///
     /// * `Ok(())` if the file is successfully saved.
     /// * `Err(ReplicateStatusCause::PreComputeSavingPlainDatasetFailed)` if the path is invalid or write fails.
-    fn save_plain_dataset_file(&self, plain_dataset: &[u8]) -> Result<(), ReplicateStatusCause> {
+    fn save_plain_dataset_file(
+        &self,
+        plain_dataset: &[u8],
+        plain_dataset_filename: &str,
+    ) -> Result<(), ReplicateStatusCause> {
         let chain_task_id: &str = &self.chain_task_id;
         let args = &self.pre_compute_args;
         let output_dir: &str = &args.output_dir;
-        let plain_dataset_filename: &str = &args.plain_dataset_filename;
 
         let mut path = PathBuf::from(output_dir);
         path.push(plain_dataset_filename);
@@ -251,13 +158,10 @@ impl PreComputeAppTrait for PreComputeApp {
     }
 }
 
-fn is_multi_address(uri: &str) -> bool {
-    !uri.trim().is_empty() && Multiaddr::from_str(uri).is_ok()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::compute::dataset::Dataset;
     use crate::compute::pre_compute_args::PreComputeArgs;
     use std::fs;
     use tempfile::TempDir;
@@ -270,7 +174,6 @@ mod tests {
         "0x02a12ef127dcfbdb294a090c8f0b69a0ca30b7940fc36cabf971f488efd374d7";
     const ENCRYPTED_DATASET_KEY: &str = "ubA6H9emVPJT91/flYAmnKHC0phSV3cfuqsLxQfgow0=";
     const HTTP_DATASET_URL: &str = "https://raw.githubusercontent.com/iExecBlockchainComputing/tee-worker-pre-compute-rust/main/src/tests_resources/encrypted-data.bin";
-    const IPFS_DATASET_URL: &str = "/ipfs/QmUVhChbLFiuzNK1g2GsWyWEiad7SXPqARnWzGumgziwEp";
     const PLAIN_DATA_FILE: &str = "plain-data.txt";
 
     fn get_pre_compute_app(
@@ -284,10 +187,13 @@ mod tests {
                 input_files: urls.into_iter().map(String::from).collect(),
                 output_dir: output_dir.to_string(),
                 is_dataset_required: true,
-                encrypted_dataset_url: HTTP_DATASET_URL.to_string(),
-                encrypted_dataset_base64_key: ENCRYPTED_DATASET_KEY.to_string(),
-                encrypted_dataset_checksum: DATASET_CHECKSUM.to_string(),
-                plain_dataset_filename: PLAIN_DATA_FILE.to_string(),
+                bulk_size: 0,
+                datasets: vec![Dataset {
+                    url: HTTP_DATASET_URL.to_string(),
+                    checksum: DATASET_CHECKSUM.to_string(),
+                    filename: PLAIN_DATA_FILE.to_string(),
+                    key: ENCRYPTED_DATASET_KEY.to_string(),
+                }],
             },
         }
     }
@@ -422,84 +328,6 @@ mod tests {
     }
     // endregion
 
-    // region download_encrypted_dataset
-    #[test]
-    fn download_encrypted_dataset_success_with_valid_dataset_url() {
-        let app = get_pre_compute_app(CHAIN_TASK_ID, vec![], "");
-
-        let actual_content = app.download_encrypted_dataset();
-        let expected_content = download_from_url(HTTP_DATASET_URL)
-            .ok_or(ReplicateStatusCause::PreComputeDatasetDownloadFailed);
-        assert_eq!(actual_content, expected_content);
-    }
-
-    #[test]
-    fn download_encrypted_dataset_failure_with_invalid_dataset_url() {
-        let mut app = get_pre_compute_app(CHAIN_TASK_ID, vec![], "");
-        app.pre_compute_args.encrypted_dataset_url = "http://bad-url".to_string();
-        let actual_content = app.download_encrypted_dataset();
-        assert_eq!(
-            actual_content,
-            Err(ReplicateStatusCause::PreComputeDatasetDownloadFailed)
-        );
-    }
-
-    #[test]
-    fn download_encrypted_dataset_success_with_valid_iexec_gateway() {
-        let mut app = get_pre_compute_app(CHAIN_TASK_ID, vec![], "");
-        app.pre_compute_args.encrypted_dataset_url = IPFS_DATASET_URL.to_string();
-        app.pre_compute_args.encrypted_dataset_checksum =
-            "0x323b1637c7999942fbebfe5d42fe15dbfe93737577663afa0181938d7ad4a2ac".to_string();
-        let actual_content = app.download_encrypted_dataset();
-        let expected_content = Ok("hello world !\n".as_bytes().to_vec());
-        assert_eq!(actual_content, expected_content);
-    }
-
-    #[test]
-    fn download_encrypted_dataset_failure_with_invalid_gateway() {
-        let mut app = get_pre_compute_app(CHAIN_TASK_ID, vec![], "");
-        app.pre_compute_args.encrypted_dataset_url = "/ipfs/INVALID_IPFS_DATASET_URL".to_string();
-        let actual_content = app.download_encrypted_dataset();
-        let expected_content = Err(ReplicateStatusCause::PreComputeDatasetDownloadFailed);
-        assert_eq!(actual_content, expected_content);
-    }
-
-    #[test]
-    fn download_encrypted_dataset_failure_with_invalid_dataset_checksum() {
-        let mut app = get_pre_compute_app(CHAIN_TASK_ID, vec![], "");
-        app.pre_compute_args.encrypted_dataset_checksum = "invalid_dataset_checksum".to_string();
-        let actual_content = app.download_encrypted_dataset();
-        let expected_content = Err(ReplicateStatusCause::PreComputeInvalidDatasetChecksum);
-        assert_eq!(actual_content, expected_content);
-    }
-    // endregion
-
-    // region decrypt_dataset
-    #[test]
-    fn decrypt_dataset_success_with_valid_dataset() {
-        let app = get_pre_compute_app(CHAIN_TASK_ID, vec![], "");
-
-        let encrypted_data = app.download_encrypted_dataset().unwrap();
-        let expected_plain_data = Ok("Some very useful data.".as_bytes().to_vec());
-        let actual_plain_data = app.decrypt_dataset(&encrypted_data);
-
-        assert_eq!(actual_plain_data, expected_plain_data);
-    }
-
-    #[test]
-    fn decrypt_dataset_failure_with_bad_key() {
-        let mut app = get_pre_compute_app(CHAIN_TASK_ID, vec![], "");
-        app.pre_compute_args.encrypted_dataset_base64_key = "bad_key".to_string();
-        let encrypted_data = app.download_encrypted_dataset().unwrap();
-        let actual_plain_data = app.decrypt_dataset(&encrypted_data);
-
-        assert_eq!(
-            actual_plain_data,
-            Err(ReplicateStatusCause::PreComputeDatasetDecryptionFailed)
-        );
-    }
-    // endregion
-
     // region save_plain_dataset_file
     #[test]
     fn save_plain_dataset_file_success_with_valid_output_dir() {
@@ -509,7 +337,7 @@ mod tests {
         let app = get_pre_compute_app(CHAIN_TASK_ID, vec![], output_path);
 
         let plain_dataset = "Some very useful data.".as_bytes().to_vec();
-        let saved_dataset = app.save_plain_dataset_file(&plain_dataset);
+        let saved_dataset = app.save_plain_dataset_file(&plain_dataset, PLAIN_DATA_FILE);
 
         assert!(saved_dataset.is_ok());
 
@@ -532,10 +360,10 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let output_path = temp_dir.path().to_str().unwrap();
 
-        let mut app = get_pre_compute_app(CHAIN_TASK_ID, vec![], output_path);
-        app.pre_compute_args.plain_dataset_filename = "/some-folder-123/not-found".to_string();
+        let app = get_pre_compute_app(CHAIN_TASK_ID, vec![], output_path);
         let plain_dataset = "Some very useful data.".as_bytes().to_vec();
-        let saved_dataset = app.save_plain_dataset_file(&plain_dataset);
+        let saved_dataset =
+            app.save_plain_dataset_file(&plain_dataset, "/some-folder-123/not-found");
 
         assert_eq!(
             saved_dataset,

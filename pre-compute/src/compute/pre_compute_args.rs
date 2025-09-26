@@ -1,3 +1,4 @@
+use crate::compute::dataset::Dataset;
 use crate::compute::errors::ReplicateStatusCause;
 use crate::compute::utils::env_utils::{TeeSessionEnvironmentVariable, get_env_var_or_error};
 
@@ -11,12 +12,11 @@ pub struct PreComputeArgs {
     pub output_dir: String,
     // Dataset related fields
     pub is_dataset_required: bool,
-    pub encrypted_dataset_url: String,
-    pub encrypted_dataset_base64_key: String,
-    pub encrypted_dataset_checksum: String,
-    pub plain_dataset_filename: String,
     // Input files
     pub input_files: Vec<String>,
+    // Bulk processing
+    pub bulk_size: usize,
+    pub datasets: Vec<Dataset>,
 }
 
 impl PreComputeArgs {
@@ -28,20 +28,27 @@ impl PreComputeArgs {
     ///   - `IEXEC_PRE_COMPUTE_OUT`: Output directory path
     ///   - `IEXEC_DATASET_REQUIRED`: Boolean ("true"/"false") indicating dataset requirement
     ///   - `IEXEC_INPUT_FILES_NUMBER`: Number of input files to load
+    ///   - `BULK_SIZE`: Number of bulk datasets (0 means no bulk processing)
     /// - Required when `IEXEC_DATASET_REQUIRED` = "true":
     ///   - `IEXEC_DATASET_URL`: Encrypted dataset URL
     ///   - `IEXEC_DATASET_KEY`: Base64-encoded dataset encryption key
     ///   - `IEXEC_DATASET_CHECKSUM`: Encrypted dataset checksum
     ///   - `IEXEC_DATASET_FILENAME`: Decrypted dataset filename
+    /// - Required when `BULK_SIZE` > 0 (for each dataset index from 1 to BULK_SIZE):
+    ///   - `BULK_DATASET_#_URL`: Dataset URL
+    ///   - `BULK_DATASET_#_CHECKSUM`: Dataset checksum
+    ///   - `BULK_DATASET_#_FILENAME`: Dataset filename
+    ///   - `BULK_DATASET_#_KEY`: Dataset decryption key
     /// - Input file URLs (`IEXEC_INPUT_FILE_URL_1`, `IEXEC_INPUT_FILE_URL_2`, etc.)
     ///
     /// # Errors
     /// Returns `ReplicateStatusCause` error variants for:
     /// - Missing required environment variables
     /// - Invalid boolean values in `IEXEC_DATASET_REQUIRED`
-    /// - Invalid numeric format in `IEXEC_INPUT_FILES_NUMBER`
+    /// - Invalid numeric format in `IEXEC_INPUT_FILES_NUMBER` or `BULK_SIZE`
     /// - Missing dataset parameters when required
     /// - Missing input file URLs
+    /// - Missing bulk dataset parameters when bulk processing is enabled
     ///
     /// # Example
     ///
@@ -66,28 +73,55 @@ impl PreComputeArgs {
             .parse::<bool>()
             .map_err(|_| ReplicateStatusCause::PreComputeIsDatasetRequiredMissing)?;
 
-        let mut encrypted_dataset_url = String::new();
-        let mut encrypted_dataset_base64_key = String::new();
-        let mut encrypted_dataset_checksum = String::new();
-        let mut plain_dataset_filename = String::new();
+        // Read bulk size (defaults to 0 if not present for backward compatibility)
+        let bulk_size_str = std::env::var(TeeSessionEnvironmentVariable::BulkSize.name())
+            .unwrap_or("0".to_string());
+        let bulk_size = bulk_size_str
+            .parse::<usize>()
+            .map_err(|_| ReplicateStatusCause::PreComputeIsDatasetRequiredMissing)?;
+
+        let mut datasets = Vec::with_capacity(bulk_size + 1);
 
         if is_dataset_required {
-            encrypted_dataset_url = get_env_var_or_error(
+            let url = get_env_var_or_error(
                 TeeSessionEnvironmentVariable::IexecDatasetUrl,
                 ReplicateStatusCause::PreComputeDatasetUrlMissing,
             )?;
-            encrypted_dataset_base64_key = get_env_var_or_error(
+            let key = get_env_var_or_error(
                 TeeSessionEnvironmentVariable::IexecDatasetKey,
                 ReplicateStatusCause::PreComputeDatasetKeyMissing,
             )?;
-            encrypted_dataset_checksum = get_env_var_or_error(
+            let checksum = get_env_var_or_error(
                 TeeSessionEnvironmentVariable::IexecDatasetChecksum,
                 ReplicateStatusCause::PreComputeDatasetChecksumMissing,
             )?;
-            plain_dataset_filename = get_env_var_or_error(
+            let filename = get_env_var_or_error(
                 TeeSessionEnvironmentVariable::IexecDatasetFilename,
                 ReplicateStatusCause::PreComputeDatasetFilenameMissing,
             )?;
+            datasets.push(Dataset::new(url, checksum, filename, key));
+        }
+
+        // Read bulk datasets
+        for i in 1..=bulk_size {
+            let url = get_env_var_or_error(
+                TeeSessionEnvironmentVariable::BulkDatasetUrl(i),
+                ReplicateStatusCause::PreComputeDatasetUrlMissing,
+            )?;
+            let checksum = get_env_var_or_error(
+                TeeSessionEnvironmentVariable::BulkDatasetChecksum(i),
+                ReplicateStatusCause::PreComputeDatasetChecksumMissing,
+            )?;
+            let filename = get_env_var_or_error(
+                TeeSessionEnvironmentVariable::BulkDatasetFilename(i),
+                ReplicateStatusCause::PreComputeDatasetFilenameMissing,
+            )?;
+            let key = get_env_var_or_error(
+                TeeSessionEnvironmentVariable::BulkDatasetKey(i),
+                ReplicateStatusCause::PreComputeDatasetKeyMissing,
+            )?;
+
+            datasets.push(Dataset::new(url, checksum, filename, key));
         }
 
         let input_files_nb_str = get_env_var_or_error(
@@ -110,11 +144,9 @@ impl PreComputeArgs {
         Ok(PreComputeArgs {
             output_dir,
             is_dataset_required,
-            encrypted_dataset_url,
-            encrypted_dataset_base64_key,
-            encrypted_dataset_checksum,
-            plain_dataset_filename,
             input_files,
+            bulk_size,
+            datasets,
         })
     }
 }
@@ -137,6 +169,7 @@ mod tests {
         vars.insert(IexecPreComputeOut.name(), OUTPUT_DIR.to_string());
         vars.insert(IsDatasetRequired.name(), "true".to_string());
         vars.insert(IexecInputFilesNumber.name(), "0".to_string());
+        vars.insert(BulkSize.name(), "0".to_string()); // Default to no bulk processing
         vars
     }
 
@@ -162,6 +195,26 @@ mod tests {
         vars
     }
 
+    // TODO: Collect all errors instead of propagating immediately, and return the list of errors
+    fn setup_bulk_dataset_env_vars(count: usize) -> HashMap<String, String> {
+        let mut vars = HashMap::new();
+        vars.insert(BulkSize.name(), count.to_string());
+
+        for i in 1..=count {
+            vars.insert(
+                BulkDatasetUrl(i).name(),
+                format!("https://bulk-dataset-{i}.bin"),
+            );
+            vars.insert(BulkDatasetChecksum(i).name(), format!("0x{i}23checksum"));
+            vars.insert(
+                BulkDatasetFilename(i).name(),
+                format!("bulk-dataset-{i}.txt"),
+            );
+            vars.insert(BulkDatasetKey(i).name(), format!("bulkKey{i}23"));
+        }
+        vars
+    }
+
     fn to_temp_env_vars(map: HashMap<String, String>) -> Vec<(String, Option<String>)> {
         map.into_iter().map(|(k, v)| (k, Some(v))).collect()
     }
@@ -180,12 +233,10 @@ mod tests {
 
             assert_eq!(args.output_dir, OUTPUT_DIR);
             assert!(!args.is_dataset_required);
-            assert_eq!(args.encrypted_dataset_url, "");
-            assert_eq!(args.encrypted_dataset_base64_key, "");
-            assert_eq!(args.encrypted_dataset_checksum, "");
-            assert_eq!(args.plain_dataset_filename, "");
             assert_eq!(args.input_files.len(), 1);
             assert_eq!(args.input_files[0], "https://input-1.txt");
+            assert_eq!(args.bulk_size, 0);
+            assert_eq!(args.datasets.len(), 0);
         });
     }
 
@@ -204,14 +255,13 @@ mod tests {
 
             assert_eq!(args.output_dir, OUTPUT_DIR);
             assert!(args.is_dataset_required);
-            assert_eq!(args.encrypted_dataset_url, DATASET_URL.to_string());
-            assert_eq!(args.encrypted_dataset_base64_key, DATASET_KEY.to_string());
-            assert_eq!(
-                args.encrypted_dataset_checksum,
-                DATASET_CHECKSUM.to_string()
-            );
-            assert_eq!(args.plain_dataset_filename, DATASET_FILENAME.to_string());
+            assert_eq!(args.datasets[0].url, DATASET_URL.to_string());
+            assert_eq!(args.datasets[0].key, DATASET_KEY.to_string());
+            assert_eq!(args.datasets[0].checksum, DATASET_CHECKSUM.to_string());
+            assert_eq!(args.datasets[0].filename, DATASET_FILENAME.to_string());
             assert_eq!(args.input_files.len(), 0);
+            assert_eq!(args.bulk_size, 0);
+            assert_eq!(args.datasets.len(), 1);
         });
     }
 
@@ -231,14 +281,12 @@ mod tests {
 
             assert_eq!(args.output_dir, OUTPUT_DIR);
             assert!(!args.is_dataset_required);
-            assert_eq!(args.encrypted_dataset_url, "");
-            assert_eq!(args.encrypted_dataset_base64_key, "");
-            assert_eq!(args.encrypted_dataset_checksum, "");
-            assert_eq!(args.plain_dataset_filename, "");
             assert_eq!(args.input_files.len(), 3);
             assert_eq!(args.input_files[0], "https://input-1.txt");
             assert_eq!(args.input_files[1], "https://input-2.txt");
             assert_eq!(args.input_files[2], "https://input-3.txt");
+            assert_eq!(args.bulk_size, 0);
+            assert_eq!(args.datasets.len(), 0);
         });
     }
     // endregion
@@ -290,6 +338,171 @@ mod tests {
             assert_eq!(
                 result.unwrap_err(),
                 ReplicateStatusCause::PreComputeInputFilesNumberMissing
+            );
+        });
+    }
+    // endregion
+
+    // region bulk processing tests
+    #[test]
+    fn read_args_succeeds_with_bulk_datasets() {
+        let mut env_vars = setup_basic_env_vars();
+        env_vars.insert(IsDatasetRequired.name(), "false".to_string());
+        env_vars.extend(setup_input_files_env_vars(0));
+        env_vars.extend(setup_bulk_dataset_env_vars(3));
+
+        temp_env::with_vars(to_temp_env_vars(env_vars), || {
+            let result = PreComputeArgs::read_args();
+
+            assert!(result.is_ok());
+            let args = result.unwrap();
+
+            assert_eq!(args.output_dir, OUTPUT_DIR);
+            assert!(!args.is_dataset_required);
+            assert_eq!(args.bulk_size, 3);
+            assert_eq!(args.datasets.len(), 3);
+            assert_eq!(args.input_files.len(), 0);
+
+            // Check first bulk dataset
+            assert_eq!(args.datasets[0].url, "https://bulk-dataset-1.bin");
+            assert_eq!(args.datasets[0].checksum, "0x123checksum");
+            assert_eq!(args.datasets[0].filename, "bulk-dataset-1.txt");
+            assert_eq!(args.datasets[0].key, "bulkKey123");
+
+            // Check second bulk dataset
+            assert_eq!(args.datasets[1].url, "https://bulk-dataset-2.bin");
+            assert_eq!(args.datasets[1].checksum, "0x223checksum");
+            assert_eq!(args.datasets[1].filename, "bulk-dataset-2.txt");
+            assert_eq!(args.datasets[1].key, "bulkKey223");
+
+            // Check third bulk dataset
+            assert_eq!(args.datasets[2].url, "https://bulk-dataset-3.bin");
+            assert_eq!(args.datasets[2].checksum, "0x323checksum");
+            assert_eq!(args.datasets[2].filename, "bulk-dataset-3.txt");
+            assert_eq!(args.datasets[2].key, "bulkKey323");
+        });
+    }
+
+    #[test]
+    fn read_args_succeeds_with_both_dataset_and_bulk_datasets() {
+        let mut env_vars = setup_basic_env_vars();
+        env_vars.extend(setup_dataset_env_vars());
+        env_vars.extend(setup_input_files_env_vars(0));
+        env_vars.extend(setup_bulk_dataset_env_vars(2));
+
+        temp_env::with_vars(to_temp_env_vars(env_vars), || {
+            let result = PreComputeArgs::read_args();
+
+            assert!(result.is_ok());
+            let args = result.unwrap();
+
+            assert_eq!(args.output_dir, OUTPUT_DIR);
+            assert!(args.is_dataset_required);
+            assert_eq!(args.bulk_size, 2);
+            assert_eq!(args.datasets.len(), 3); // 1 regular + 2 bulk datasets
+            assert_eq!(args.input_files.len(), 0);
+
+            // Check regular dataset (first in list)
+            assert_eq!(args.datasets[0].url, DATASET_URL);
+            assert_eq!(args.datasets[0].checksum, DATASET_CHECKSUM);
+            assert_eq!(args.datasets[0].filename, DATASET_FILENAME);
+            assert_eq!(args.datasets[0].key, DATASET_KEY);
+
+            // Check bulk datasets
+            assert_eq!(args.datasets[1].url, "https://bulk-dataset-1.bin");
+            assert_eq!(args.datasets[2].url, "https://bulk-dataset-2.bin");
+        });
+    }
+
+    #[test]
+    fn read_args_fails_when_invalid_bulk_size_format() {
+        let mut env_vars = setup_basic_env_vars();
+        env_vars.insert(IsDatasetRequired.name(), "false".to_string());
+        env_vars.insert(BulkSize.name(), "not-a-number".to_string());
+        env_vars.extend(setup_input_files_env_vars(0));
+
+        temp_env::with_vars(to_temp_env_vars(env_vars), || {
+            let result = PreComputeArgs::read_args();
+            assert!(result.is_err());
+            assert_eq!(
+                result.unwrap_err(),
+                ReplicateStatusCause::PreComputeIsDatasetRequiredMissing
+            );
+        });
+    }
+
+    #[test]
+    fn read_args_fails_when_bulk_dataset_url_missing() {
+        let mut env_vars = setup_basic_env_vars();
+        env_vars.insert(IsDatasetRequired.name(), "false".to_string());
+        env_vars.extend(setup_input_files_env_vars(0));
+        env_vars.extend(setup_bulk_dataset_env_vars(2));
+        // Remove one of the bulk dataset URLs
+        env_vars.remove(&BulkDatasetUrl(1).name());
+
+        temp_env::with_vars(to_temp_env_vars(env_vars), || {
+            let result = PreComputeArgs::read_args();
+            assert!(result.is_err());
+            assert_eq!(
+                result.unwrap_err(),
+                ReplicateStatusCause::PreComputeDatasetUrlMissing
+            );
+        });
+    }
+
+    #[test]
+    fn read_args_fails_when_bulk_dataset_checksum_missing() {
+        let mut env_vars = setup_basic_env_vars();
+        env_vars.insert(IsDatasetRequired.name(), "false".to_string());
+        env_vars.extend(setup_input_files_env_vars(0));
+        env_vars.extend(setup_bulk_dataset_env_vars(2));
+        // Remove one of the bulk dataset checksums
+        env_vars.remove(&BulkDatasetChecksum(2).name());
+
+        temp_env::with_vars(to_temp_env_vars(env_vars), || {
+            let result = PreComputeArgs::read_args();
+            assert!(result.is_err());
+            assert_eq!(
+                result.unwrap_err(),
+                ReplicateStatusCause::PreComputeDatasetChecksumMissing
+            );
+        });
+    }
+
+    #[test]
+    fn read_args_fails_when_bulk_dataset_filename_missing() {
+        let mut env_vars = setup_basic_env_vars();
+        env_vars.insert(IsDatasetRequired.name(), "false".to_string());
+        env_vars.extend(setup_input_files_env_vars(0));
+        env_vars.extend(setup_bulk_dataset_env_vars(3));
+        // Remove one of the bulk dataset filenames
+        env_vars.remove(&BulkDatasetFilename(2).name());
+
+        temp_env::with_vars(to_temp_env_vars(env_vars), || {
+            let result = PreComputeArgs::read_args();
+            assert!(result.is_err());
+            assert_eq!(
+                result.unwrap_err(),
+                ReplicateStatusCause::PreComputeDatasetFilenameMissing
+            );
+        });
+    }
+
+    #[test]
+    fn read_args_fails_when_bulk_dataset_key_missing() {
+        let mut env_vars = setup_basic_env_vars();
+        env_vars.insert(IsDatasetRequired.name(), "false".to_string());
+        env_vars.extend(setup_input_files_env_vars(0));
+        env_vars.extend(setup_bulk_dataset_env_vars(2));
+        // Remove one of the bulk dataset keys
+        env_vars.remove(&BulkDatasetKey(1).name());
+
+        temp_env::with_vars(to_temp_env_vars(env_vars), || {
+            let result = PreComputeArgs::read_args();
+            assert!(result.is_err());
+            assert_eq!(
+                result.unwrap_err(),
+                ReplicateStatusCause::PreComputeDatasetKeyMissing
             );
         });
     }
