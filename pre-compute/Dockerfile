@@ -1,7 +1,7 @@
 FROM rust:1.88-alpine3.22 AS builder
 
 # Install build dependencies with pinned versions
-RUN apk add --no-cache musl-dev=1.2.5-r10 openssl-dev=3.5.3-r1
+RUN apk add --no-cache musl-dev=1.2.5-r10 openssl-dev=3.5.4-r0
 
 WORKDIR /app
 
