@@ -2,15 +2,11 @@ use crate::compute::errors::ReplicateStatusCause;
 use std::env;
 
 pub enum TeeSessionEnvironmentVariable {
-    BulkSize,
-    BulkDatasetUrl(usize),
-    BulkDatasetChecksum(usize),
-    BulkDatasetFilename(usize),
-    BulkDatasetKey(usize),
-    IexecDatasetChecksum,
-    IexecDatasetFilename,
-    IexecDatasetKey,
-    IexecDatasetUrl,
+    IexecBulkSliceSize,
+    IexecDatasetChecksum(usize),
+    IexecDatasetFilename(usize),
+    IexecDatasetKey(usize),
+    IexecDatasetUrl(usize),
     IexecInputFileUrlPrefix(usize),
     IexecInputFilesNumber,
     IexecPreComputeOut,
@@ -24,43 +20,38 @@ pub enum TeeSessionEnvironmentVariable {
 impl TeeSessionEnvironmentVariable {
     pub fn name(&self) -> String {
         match self {
-            TeeSessionEnvironmentVariable::BulkSize => "BULK_SIZE".to_string(),
-            TeeSessionEnvironmentVariable::BulkDatasetUrl(index) => {
-                format!("BULK_DATASET_{index}_URL")
+            Self::IexecBulkSliceSize => "IEXEC_BULK_SLICE_SIZE".to_string(),
+
+            Self::IexecDatasetChecksum(0) => "IEXEC_DATASET_CHECKSUM".to_string(),
+            Self::IexecDatasetChecksum(index) => {
+                format!("IEXEC_DATASET_{index}_CHECKSUM")
             }
-            TeeSessionEnvironmentVariable::BulkDatasetChecksum(index) => {
-                format!("BULK_DATASET_{index}_CHECKSUM")
+
+            Self::IexecDatasetFilename(0) => "IEXEC_DATASET_FILENAME".to_string(),
+            Self::IexecDatasetFilename(index) => {
+                format!("IEXEC_DATASET_{index}_FILENAME")
             }
-            TeeSessionEnvironmentVariable::BulkDatasetFilename(index) => {
-                format!("BULK_DATASET_{index}_FILENAME")
+
+            Self::IexecDatasetKey(0) => "IEXEC_DATASET_KEY".to_string(),
+            Self::IexecDatasetKey(index) => {
+                format!("IEXEC_DATASET_{index}_KEY")
             }
-            TeeSessionEnvironmentVariable::BulkDatasetKey(index) => {
-                format!("BULK_DATASET_{index}_KEY")
+
+            Self::IexecDatasetUrl(0) => "IEXEC_DATASET_URL".to_string(),
+            Self::IexecDatasetUrl(index) => {
+                format!("IEXEC_DATASET_{index}_URL")
             }
-            TeeSessionEnvironmentVariable::IexecDatasetChecksum => {
-                "IEXEC_DATASET_CHECKSUM".to_string()
-            }
-            TeeSessionEnvironmentVariable::IexecDatasetFilename => {
-                "IEXEC_DATASET_FILENAME".to_string()
-            }
-            TeeSessionEnvironmentVariable::IexecDatasetKey => "IEXEC_DATASET_KEY".to_string(),
-            TeeSessionEnvironmentVariable::IexecDatasetUrl => "IEXEC_DATASET_URL".to_string(),
-            TeeSessionEnvironmentVariable::IexecInputFileUrlPrefix(index) => {
+
+            Self::IexecInputFileUrlPrefix(index) => {
                 format!("IEXEC_INPUT_FILE_URL_{index}")
             }
-            TeeSessionEnvironmentVariable::IexecInputFilesNumber => {
-                "IEXEC_INPUT_FILES_NUMBER".to_string()
-            }
-            TeeSessionEnvironmentVariable::IexecPreComputeOut => {
-                "IEXEC_PRE_COMPUTE_OUT".to_string()
-            }
-            TeeSessionEnvironmentVariable::IexecTaskId => "IEXEC_TASK_ID".to_string(),
-            TeeSessionEnvironmentVariable::IsDatasetRequired => "IS_DATASET_REQUIRED".to_string(),
-            TeeSessionEnvironmentVariable::SignTeeChallengePrivateKey => {
-                "SIGN_TEE_CHALLENGE_PRIVATE_KEY".to_string()
-            }
-            TeeSessionEnvironmentVariable::SignWorkerAddress => "SIGN_WORKER_ADDRESS".to_string(),
-            TeeSessionEnvironmentVariable::WorkerHostEnvVar => "WORKER_HOST_ENV_VAR".to_string(),
+            Self::IexecInputFilesNumber => "IEXEC_INPUT_FILES_NUMBER".to_string(),
+            Self::IexecPreComputeOut => "IEXEC_PRE_COMPUTE_OUT".to_string(),
+            Self::IexecTaskId => "IEXEC_TASK_ID".to_string(),
+            Self::IsDatasetRequired => "IS_DATASET_REQUIRED".to_string(),
+            Self::SignTeeChallengePrivateKey => "SIGN_TEE_CHALLENGE_PRIVATE_KEY".to_string(),
+            Self::SignWorkerAddress => "SIGN_WORKER_ADDRESS".to_string(),
+            Self::WorkerHostEnvVar => "WORKER_HOST_ENV_VAR".to_string(),
         }
     }
 }

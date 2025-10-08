@@ -187,7 +187,7 @@ mod tests {
                 input_files: urls.into_iter().map(String::from).collect(),
                 output_dir: output_dir.to_string(),
                 is_dataset_required: true,
-                bulk_size: 0,
+                iexec_bulk_slice_size: 0,
                 datasets: vec![Dataset {
                     url: HTTP_DATASET_URL.to_string(),
                     checksum: DATASET_CHECKSUM.to_string(),
