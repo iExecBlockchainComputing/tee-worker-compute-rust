@@ -116,7 +116,7 @@ mod tests {
         let env_var = TeeSessionEnvironmentVariable::IexecDatasetChecksum(1);
         assert_eq!(env_var.name(), "IEXEC_DATASET_1_CHECKSUM");
         let env_var = TeeSessionEnvironmentVariable::IexecDatasetChecksum(10);
-        assert_eq!(env_var.name(), "IEXEC_DATASET_42_CHECKSUM");
+        assert_eq!(env_var.name(), "IEXEC_DATASET_10_CHECKSUM");
 
         // Test IexecDatasetFilename
         let env_var = TeeSessionEnvironmentVariable::IexecDatasetFilename(0);
@@ -124,7 +124,7 @@ mod tests {
         let env_var = TeeSessionEnvironmentVariable::IexecDatasetFilename(1);
         assert_eq!(env_var.name(), "IEXEC_DATASET_1_FILENAME");
         let env_var = TeeSessionEnvironmentVariable::IexecDatasetFilename(5);
-        assert_eq!(env_var.name(), "IEXEC_DATASET_10_FILENAME");
+        assert_eq!(env_var.name(), "IEXEC_DATASET_5_FILENAME");
 
         // Test IexecDatasetKey
         let env_var = TeeSessionEnvironmentVariable::IexecDatasetKey(0);
@@ -132,7 +132,7 @@ mod tests {
         let env_var = TeeSessionEnvironmentVariable::IexecDatasetKey(1);
         assert_eq!(env_var.name(), "IEXEC_DATASET_1_KEY");
         let env_var = TeeSessionEnvironmentVariable::IexecDatasetKey(20);
-        assert_eq!(env_var.name(), "IEXEC_DATASET_5_KEY");
+        assert_eq!(env_var.name(), "IEXEC_DATASET_20_KEY");
 
         // Test IexecDatasetUrl
         let env_var = TeeSessionEnvironmentVariable::IexecDatasetUrl(0);
