@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.0](https://github.com/iExecBlockchainComputing/tee-worker-compute-rust/compare/tee-worker-pre-compute-v0.2.0...tee-worker-pre-compute-v0.3.0) (2025-10-09)
+
+
+### Features
+
+* add bulk dataset support with environment variables ([#16](https://github.com/iExecBlockchainComputing/tee-worker-compute-rust/issues/16)) ([c389c2e](https://github.com/iExecBlockchainComputing/tee-worker-compute-rust/commit/c389c2e7af2d3b72b4f523b4b81fb1ba4dcaf8be))
+* rename bulk environment variables ([#20](https://github.com/iExecBlockchainComputing/tee-worker-compute-rust/issues/20)) ([94c91a5](https://github.com/iExecBlockchainComputing/tee-worker-compute-rust/commit/94c91a5cc58a948b13af21e9e2b3dc1a7f774caf))
+
 ## [0.2.0](https://github.com/iExecBlockchainComputing/tee-worker-compute-rust/compare/tee-worker-pre-compute-v0.1.0...tee-worker-pre-compute-v0.2.0) (2025-09-19)
 
 
