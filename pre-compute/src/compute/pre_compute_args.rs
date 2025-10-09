@@ -79,7 +79,7 @@ impl PreComputeArgs {
                 .unwrap_or("0".to_string());
         let iexec_bulk_slice_size = iexec_bulk_slice_size_str
             .parse::<usize>()
-            .map_err(|_| ReplicateStatusCause::PreComputeIsDatasetRequiredMissing)?;
+            .map_err(|_| ReplicateStatusCause::PreComputeFailedUnknownIssue)?; // TODO: replace with a more specific error
 
         let mut datasets = Vec::with_capacity(iexec_bulk_slice_size + 1);
 
@@ -88,19 +88,19 @@ impl PreComputeArgs {
         for i in start_index..=iexec_bulk_slice_size {
             let url = get_env_var_or_error(
                 TeeSessionEnvironmentVariable::IexecDatasetUrl(i),
-                ReplicateStatusCause::PreComputeDatasetUrlMissing,
+                ReplicateStatusCause::PreComputeDatasetUrlMissing, // TODO: replace with a more specific error for bulk dataset
             )?;
             let checksum = get_env_var_or_error(
                 TeeSessionEnvironmentVariable::IexecDatasetChecksum(i),
-                ReplicateStatusCause::PreComputeDatasetChecksumMissing,
+                ReplicateStatusCause::PreComputeDatasetChecksumMissing, // TODO: replace with a more specific error for bulk dataset
             )?;
             let filename = get_env_var_or_error(
                 TeeSessionEnvironmentVariable::IexecDatasetFilename(i),
-                ReplicateStatusCause::PreComputeDatasetFilenameMissing,
+                ReplicateStatusCause::PreComputeDatasetFilenameMissing, // TODO: replace with a more specific error for bulk dataset
             )?;
             let key = get_env_var_or_error(
                 TeeSessionEnvironmentVariable::IexecDatasetKey(i),
-                ReplicateStatusCause::PreComputeDatasetKeyMissing,
+                ReplicateStatusCause::PreComputeDatasetKeyMissing, // TODO: replace with a more specific error for bulk dataset
             )?;
 
             datasets.push(Dataset::new(url, checksum, filename, key));
@@ -408,7 +408,7 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                ReplicateStatusCause::PreComputeIsDatasetRequiredMissing
+                ReplicateStatusCause::PreComputeFailedUnknownIssue
             );
         });
     }
