@@ -4,40 +4,6 @@ use crate::compute::{
 };
 use log::error;
 use reqwest::{blocking::Client, header::AUTHORIZATION};
-use serde::Serialize;
-
-/// Represents payload that can be sent to the worker API to report the outcome of the
-/// pre‑compute stage.
-///
-/// The JSON structure expected by the REST endpoint is:
-/// ```json
-/// {
-///   "cause": "<ReplicateStatusCause as string>"
-/// }
-/// ```
-///
-/// # Arguments
-///
-/// * `cause` - A reference to the ReplicateStatusCause indicating why the pre-compute operation exited
-///
-/// # Example
-///
-/// ```rust
-/// use tee_worker_pre_compute::api::worker_api::ExitMessage;
-/// use tee_worker_pre_compute::compute::errors::ReplicateStatusCause;
-///
-/// let exit_message = ExitMessage::from(&ReplicateStatusCause::PreComputeInvalidTeeSignature);
-/// ```
-#[derive(Serialize, Debug)]
-pub struct ExitMessage<'a> {
-    pub cause: &'a ReplicateStatusCause,
-}
-
-impl<'a> From<&'a ReplicateStatusCause> for ExitMessage<'a> {
-    fn from(cause: &'a ReplicateStatusCause) -> Self {
-        Self { cause }
-    }
-}
 
 /// Thin wrapper around a [`Client`] that knows how to reach the iExec worker API.
 ///
@@ -93,21 +59,21 @@ impl WorkerApiClient {
         Self::new(&base_url)
     }
 
-    /// Sends an exit cause for a pre-compute operation to the Worker API.
+    /// Sends exit causes for a pre-compute operation to the Worker API.
     ///
-    /// This method reports the exit cause of a pre-compute operation to the Worker API,
+    /// This method reports the exit causes of a pre-compute operation to the Worker API,
     /// which can be used for tracking and debugging purposes.
     ///
     /// # Arguments
     ///
     /// * `authorization` - The authorization token to use for the API request
-    /// * `chain_task_id` - The chain task ID for which to report the exit cause
-    /// * `exit_cause` - The exit cause to report
+    /// * `chain_task_id` - The chain task ID for which to report the exit causes
+    /// * `exit_causes` - The list of exit causes to report
     ///
     /// # Returns
     ///
-    /// * `Ok(())` - If the exit cause was successfully reported
-    /// * `Err(Error)` - If the exit cause could not be reported due to an HTTP error
+    /// * `Ok(())` - If the exit causes were successfully reported
+    /// * `Err(Error)` - If the exit causes could not be reported due to an HTTP error
     ///
     /// # Errors
     ///
@@ -117,33 +83,33 @@ impl WorkerApiClient {
     /// # Example
     ///
     /// ```rust
-    /// use tee_worker_pre_compute::api::worker_api::{ExitMessage, WorkerApiClient};
+    /// use tee_worker_pre_compute::api::worker_api::WorkerApiClient;
     /// use tee_worker_pre_compute::compute::errors::ReplicateStatusCause;
     ///
     /// let client = WorkerApiClient::new("http://worker:13100");
-    /// let exit_message = ExitMessage::from(&ReplicateStatusCause::PreComputeInvalidTeeSignature);
+    /// let exit_causes = vec![ReplicateStatusCause::PreComputeInvalidTeeSignature];
     ///
-    /// match client.send_exit_cause_for_pre_compute_stage(
+    /// match client.send_exit_causes_for_pre_compute_stage(
     ///     "authorization_token",
     ///     "0x123456789abcdef",
-    ///     &exit_message,
+    ///     &exit_causes,
     /// ) {
-    ///     Ok(()) => println!("Exit cause reported successfully"),
-    ///     Err(error) => eprintln!("Failed to report exit cause: {error}"),
+    ///     Ok(()) => println!("Exit causes reported successfully"),
+    ///     Err(error) => eprintln!("Failed to report exit causes: {error}"),
     /// }
     /// ```
-    pub fn send_exit_cause_for_pre_compute_stage(
+    pub fn send_exit_causes_for_pre_compute_stage(
         &self,
         authorization: &str,
         chain_task_id: &str,
-        exit_cause: &ExitMessage,
+        exit_causes: &Vec<ReplicateStatusCause>,
     ) -> Result<(), ReplicateStatusCause> {
         let url = format!("{}/compute/pre/{chain_task_id}/exit", self.base_url);
         match self
             .client
             .post(&url)
             .header(AUTHORIZATION, authorization)
-            .json(exit_cause)
+            .json(exit_causes)
             .send()
         {
             Ok(resp) => {
@@ -152,12 +118,12 @@ impl WorkerApiClient {
                     Ok(())
                 } else {
                     let body = resp.text().unwrap_or_default();
-                    error!("Failed to send exit cause: [status:{status}, body:{body}]");
+                    error!("Failed to send exit causes: [status:{status}, body:{body}]");
                     Err(ReplicateStatusCause::PreComputeFailedUnknownIssue)
                 }
             }
             Err(err) => {
-                error!("HTTP request failed when sending exit cause to {url}: {err:?}");
+                error!("HTTP request failed when sending exit causes to {url}: {err:?}");
                 Err(ReplicateStatusCause::PreComputeFailedUnknownIssue)
             }
         }
@@ -175,30 +141,44 @@ mod tests {
         matchers::{body_json, header, method, path},
     };
 
-    // region ExitMessage()
+    // region Serialization tests
     #[test]
-    fn should_serialize_exit_message() {
-        let causes = [
+    fn should_serialize_replicate_status_cause() {
+        let causes = vec![
             (
                 ReplicateStatusCause::PreComputeInvalidTeeSignature,
-                "PRE_COMPUTE_INVALID_TEE_SIGNATURE",
+                r#"{"cause":"PRE_COMPUTE_INVALID_TEE_SIGNATURE","message":"Invalid TEE signature"}"#,
             ),
             (
                 ReplicateStatusCause::PreComputeWorkerAddressMissing,
-                "PRE_COMPUTE_WORKER_ADDRESS_MISSING",
+                r#"{"cause":"PRE_COMPUTE_WORKER_ADDRESS_MISSING","message":"Worker address related environment variable is missing"}"#,
             ),
             (
-                ReplicateStatusCause::PreComputeFailedUnknownIssue,
-                "PRE_COMPUTE_FAILED_UNKNOWN_ISSUE",
+                ReplicateStatusCause::PreComputeDatasetUrlMissing(2),
+                r#"{"cause":"PRE_COMPUTE_DATASET_URL_MISSING","message":"Dataset URL related environment variable is missing for dataset 2"}"#,
+            ),
+            (
+                ReplicateStatusCause::PreComputeInvalidDatasetChecksum(1),
+                r#"{"cause":"PRE_COMPUTE_INVALID_DATASET_CHECKSUM","message":"Invalid dataset checksum for dataset 1"}"#,
             ),
         ];
 
-        for (cause, message) in causes {
-            let exit_message = ExitMessage::from(&cause);
-            let serialized = to_string(&exit_message).expect("Failed to serialize");
-            let expected = format!("{{\"cause\":\"{message}\"}}");
-            assert_eq!(serialized, expected);
+        for (cause, expected_json) in causes {
+            let serialized = to_string(&cause).expect("Failed to serialize");
+            assert_eq!(serialized, expected_json);
         }
+    }
+
+    #[test]
+    fn should_serialize_vec_of_causes() {
+        let causes = vec![
+            ReplicateStatusCause::PreComputeDatasetUrlMissing(0),
+            ReplicateStatusCause::PreComputeInvalidDatasetChecksum(1),
+        ];
+
+        let serialized = to_string(&causes).expect("Failed to serialize");
+        let expected = r#"[{"cause":"PRE_COMPUTE_DATASET_URL_MISSING","message":"Dataset URL related environment variable is missing for dataset 0"},{"cause":"PRE_COMPUTE_INVALID_DATASET_CHECKSUM","message":"Invalid dataset checksum for dataset 1"}]"#;
+        assert_eq!(serialized, expected);
     }
     // endregion
 
@@ -223,18 +203,21 @@ mod tests {
     }
     // endregion
 
-    // region send_exit_cause_for_pre_compute_stage()
+    // region send_exit_causes_for_pre_compute_stage()
     const CHALLENGE: &str = "challenge";
     const CHAIN_TASK_ID: &str = "0x123456789abcdef";
 
     #[tokio::test]
-    async fn should_send_exit_cause() {
+    async fn should_send_exit_causes() {
         let mock_server = MockServer::start().await;
         let server_url = mock_server.uri();
 
-        let expected_body = json!({
-            "cause": ReplicateStatusCause::PreComputeInvalidTeeSignature,
-        });
+        let expected_body = json!([
+            {
+                "cause": "PRE_COMPUTE_INVALID_TEE_SIGNATURE",
+                "message": "Invalid TEE signature"
+            }
+        ]);
 
         Mock::given(method("POST"))
             .and(path(format!("/compute/pre/{CHAIN_TASK_ID}/exit")))
@@ -246,13 +229,12 @@ mod tests {
             .await;
 
         let result = tokio::task::spawn_blocking(move || {
-            let exit_message =
-                ExitMessage::from(&ReplicateStatusCause::PreComputeInvalidTeeSignature);
+            let exit_causes = vec![ReplicateStatusCause::PreComputeInvalidTeeSignature];
             let worker_api_client = WorkerApiClient::new(&server_url);
-            worker_api_client.send_exit_cause_for_pre_compute_stage(
+            worker_api_client.send_exit_causes_for_pre_compute_stage(
                 CHALLENGE,
                 CHAIN_TASK_ID,
-                &exit_message,
+                &exit_causes,
             )
         })
         .await
@@ -262,7 +244,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_not_send_exit_cause() {
+    async fn should_not_send_exit_causes() {
         testing_logger::setup();
         let mock_server = MockServer::start().await;
         let server_url = mock_server.uri();
@@ -275,13 +257,12 @@ mod tests {
             .await;
 
         let result = tokio::task::spawn_blocking(move || {
-            let exit_message =
-                ExitMessage::from(&ReplicateStatusCause::PreComputeFailedUnknownIssue);
+            let exit_causes = vec![ReplicateStatusCause::PreComputeFailedUnknownIssue];
             let worker_api_client = WorkerApiClient::new(&server_url);
-            let response = worker_api_client.send_exit_cause_for_pre_compute_stage(
+            let response = worker_api_client.send_exit_causes_for_pre_compute_stage(
                 CHALLENGE,
                 CHAIN_TASK_ID,
-                &exit_message,
+                &exit_causes,
             );
             testing_logger::validate(|captured_logs| {
                 let logs = captured_logs
@@ -292,7 +273,7 @@ mod tests {
                 assert_eq!(logs.len(), 1);
                 assert_eq!(
                     logs[0].body,
-                    "Failed to send exit cause: [status:503 Service Unavailable, body:Service Unavailable]"
+                    "Failed to send exit causes: [status:503 Service Unavailable, body:Service Unavailable]"
                 );
             });
             response
@@ -308,14 +289,14 @@ mod tests {
     }
 
     #[test]
-    fn test_send_exit_cause_http_request_failure() {
+    fn test_send_exit_causes_http_request_failure() {
         testing_logger::setup();
-        let exit_message = ExitMessage::from(&ReplicateStatusCause::PreComputeFailedUnknownIssue);
+        let exit_causes = vec![ReplicateStatusCause::PreComputeFailedUnknownIssue];
         let worker_api_client = WorkerApiClient::new("wrong_url");
-        let result = worker_api_client.send_exit_cause_for_pre_compute_stage(
+        let result = worker_api_client.send_exit_causes_for_pre_compute_stage(
             CHALLENGE,
             CHAIN_TASK_ID,
-            &exit_message,
+            &exit_causes,
         );
         testing_logger::validate(|captured_logs| {
             let logs = captured_logs
@@ -326,7 +307,7 @@ mod tests {
             assert_eq!(logs.len(), 1);
             assert_eq!(
                 logs[0].body,
-                "HTTP request failed when sending exit cause to wrong_url/compute/pre/0x123456789abcdef/exit: reqwest::Error { kind: Builder, source: RelativeUrlWithoutBase }"
+                "HTTP request failed when sending exit causes to wrong_url/compute/pre/0x123456789abcdef/exit: reqwest::Error { kind: Builder, source: RelativeUrlWithoutBase }"
             );
         });
         assert!(result.is_err());

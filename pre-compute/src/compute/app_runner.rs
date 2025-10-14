@@ -1,4 +1,4 @@
-use crate::api::worker_api::{ExitMessage, WorkerApiClient};
+use crate::api::worker_api::WorkerApiClient;
 use crate::compute::pre_compute_app::{PreComputeApp, PreComputeAppTrait};
 use crate::compute::{
     errors::ReplicateStatusCause,
@@ -61,14 +61,12 @@ pub fn start_with_app<A: PreComputeAppTrait>(
         }
     };
 
-    let exit_message = ExitMessage {
-        cause: &exit_cause.clone(),
-    };
+    let exit_causes = vec![exit_cause.clone()];
 
-    match WorkerApiClient::from_env().send_exit_cause_for_pre_compute_stage(
+    match WorkerApiClient::from_env().send_exit_causes_for_pre_compute_stage(
         &authorization,
         chain_task_id,
-        &exit_message,
+        &exit_causes,
     ) {
         Ok(_) => ExitMode::ReportedFailure,
         Err(_) => {
@@ -231,10 +229,10 @@ mod pre_compute_start_with_app_tests {
     async fn start_succeeds_when_send_exit_cause_api_success() {
         let mock_server = MockServer::start().await;
 
-        let expected_cause_enum = ReplicateStatusCause::PreComputeOutputFolderNotFound;
-        let expected_exit_message_payload = json!({
-            "cause": expected_cause_enum // Relies on ReplicateStatusCause's Serialize impl
-        });
+        let expected_exit_message_payload = json!([{
+            "cause": "PRE_COMPUTE_OUTPUT_FOLDER_NOT_FOUND",
+            "message": "Input files number related environment variable is missing"
+        }]);
 
         // Mock the worker API to return success
         Mock::given(method("POST"))
