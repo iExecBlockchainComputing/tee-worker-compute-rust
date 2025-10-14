@@ -1,5 +1,4 @@
-use serde::Serializer;
-use serde::ser::SerializeStruct;
+use serde::{Serializer, ser::SerializeStruct};
 use thiserror::Error;
 
 #[derive(Debug, PartialEq, Clone, Error)]
