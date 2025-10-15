@@ -1,7 +1,10 @@
 use serde::{Serializer, ser::SerializeStruct};
 use thiserror::Error;
+use strum_macros::EnumDiscriminants;
 
-#[derive(Debug, PartialEq, Clone, Error)]
+#[derive(Debug, PartialEq, Clone, Error, EnumDiscriminants)]
+#[strum_discriminants(derive(serde::Serialize))]
+#[strum_discriminants(serde(rename_all = "SCREAMING_SNAKE_CASE"))]
 #[allow(clippy::enum_variant_names)]
 pub enum ReplicateStatusCause {
     #[error("input file URL {0} is missing")]
@@ -30,7 +33,7 @@ pub enum ReplicateStatusCause {
     PreComputeInputFilesNumberMissing,
     #[error("Invalid dataset checksum for dataset {0}")]
     PreComputeInvalidDatasetChecksum(usize),
-    #[error("Input files number related environment variable is missing")]
+    #[error("Output folder related environment variable is missing")]
     PreComputeOutputFolderNotFound,
     #[error("Output path related environment variable is missing")]
     PreComputeOutputPathMissing,
@@ -50,64 +53,7 @@ impl serde::Serialize for ReplicateStatusCause {
         S: Serializer,
     {
         let mut state = serializer.serialize_struct("ReplicateStatusCause", 2)?;
-
-        let cause_name = match self {
-            ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing(_) => {
-                "PRE_COMPUTE_AT_LEAST_ONE_INPUT_FILE_URL_MISSING"
-            }
-            ReplicateStatusCause::PreComputeDatasetChecksumMissing(_) => {
-                "PRE_COMPUTE_DATASET_CHECKSUM_MISSING"
-            }
-            ReplicateStatusCause::PreComputeDatasetDecryptionFailed(_) => {
-                "PRE_COMPUTE_DATASET_DECRYPTION_FAILED"
-            }
-            ReplicateStatusCause::PreComputeDatasetDownloadFailed(_) => {
-                "PRE_COMPUTE_DATASET_DOWNLOAD_FAILED"
-            }
-            ReplicateStatusCause::PreComputeDatasetFilenameMissing(_) => {
-                "PRE_COMPUTE_DATASET_FILENAME_MISSING"
-            }
-            ReplicateStatusCause::PreComputeDatasetKeyMissing(_) => {
-                "PRE_COMPUTE_DATASET_KEY_MISSING"
-            }
-            ReplicateStatusCause::PreComputeDatasetUrlMissing(_) => {
-                "PRE_COMPUTE_DATASET_URL_MISSING"
-            }
-            ReplicateStatusCause::PreComputeFailedUnknownIssue => {
-                "PRE_COMPUTE_FAILED_UNKNOWN_ISSUE"
-            }
-            ReplicateStatusCause::PreComputeInvalidTeeSignature => {
-                "PRE_COMPUTE_INVALID_TEE_SIGNATURE"
-            }
-            ReplicateStatusCause::PreComputeIsDatasetRequiredMissing => {
-                "PRE_COMPUTE_IS_DATASET_REQUIRED_MISSING"
-            }
-            ReplicateStatusCause::PreComputeInputFileDownloadFailed => {
-                "PRE_COMPUTE_INPUT_FILE_DOWNLOAD_FAILED"
-            }
-            ReplicateStatusCause::PreComputeInputFilesNumberMissing => {
-                "PRE_COMPUTE_INPUT_FILES_NUMBER_MISSING"
-            }
-            ReplicateStatusCause::PreComputeInvalidDatasetChecksum(_) => {
-                "PRE_COMPUTE_INVALID_DATASET_CHECKSUM"
-            }
-            ReplicateStatusCause::PreComputeOutputFolderNotFound => {
-                "PRE_COMPUTE_OUTPUT_FOLDER_NOT_FOUND"
-            }
-            ReplicateStatusCause::PreComputeOutputPathMissing => "PRE_COMPUTE_OUTPUT_PATH_MISSING",
-            ReplicateStatusCause::PreComputeSavingPlainDatasetFailed => {
-                "PRE_COMPUTE_SAVING_PLAIN_DATASET_FAILED"
-            }
-            ReplicateStatusCause::PreComputeTaskIdMissing => "PRE_COMPUTE_TASK_ID_MISSING",
-            ReplicateStatusCause::PreComputeTeeChallengePrivateKeyMissing => {
-                "PRE_COMPUTE_TEE_CHALLENGE_PRIVATE_KEY_MISSING"
-            }
-            ReplicateStatusCause::PreComputeWorkerAddressMissing => {
-                "PRE_COMPUTE_WORKER_ADDRESS_MISSING"
-            }
-        };
-
-        state.serialize_field("cause", cause_name)?;
+        state.serialize_field("cause", &ReplicateStatusCauseDiscriminants::from(self))?;
         state.serialize_field("message", &self.to_string())?;
         state.end()
     }

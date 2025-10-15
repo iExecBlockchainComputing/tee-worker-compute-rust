@@ -231,7 +231,7 @@ mod pre_compute_start_with_app_tests {
 
         let expected_exit_message_payload = json!([{
             "cause": "PRE_COMPUTE_OUTPUT_FOLDER_NOT_FOUND",
-            "message": "Input files number related environment variable is missing"
+            "message": "Output folder related environment variable is missing"
         }]);
 
         // Mock the worker API to return success
