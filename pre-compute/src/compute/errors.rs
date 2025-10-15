@@ -1,6 +1,6 @@
 use serde::{Serializer, ser::SerializeStruct};
-use thiserror::Error;
 use strum_macros::EnumDiscriminants;
+use thiserror::Error;
 
 #[derive(Debug, PartialEq, Clone, Error, EnumDiscriminants)]
 #[strum_discriminants(derive(serde::Serialize))]
