@@ -42,7 +42,7 @@ pub enum ReplicateStatusCause {
 
 impl ReplicateStatusCause {
     fn to_screaming_snake_case(&self) -> String {
-        let debug_str = format!("{:?}", self);
+        let debug_str = format!("{self:?}");
         let mut result = String::new();
         let mut prev_was_lowercase = false;
 
