@@ -5,42 +5,6 @@ use crate::compute::{
 };
 use log::error;
 use reqwest::{blocking::Client, header::AUTHORIZATION};
-use serde::Serialize;
-
-/// Represents payload that can be sent to the worker API to report the outcome of the
-/// post‑compute stage.
-///
-/// The JSON structure expected by the REST endpoint is:
-/// ```json
-/// {
-///   "cause": "<ReplicateStatusCause as string>"
-/// }
-/// ```
-///
-/// # Arguments
-///
-/// * `cause` - A reference to the ReplicateStatusCause indicating why the post-compute operation exited
-///
-/// # Example
-///
-/// ```rust
-/// use tee_worker_post_compute::{
-///     api::worker_api::ExitMessage,
-///     compute::errors::ReplicateStatusCause,
-/// };
-///
-/// let exit_message = ExitMessage::from(&ReplicateStatusCause::PostComputeInvalidTeeSignature);
-/// ```
-#[derive(Serialize, Debug)]
-pub struct ExitMessage<'a> {
-    pub cause: &'a ReplicateStatusCause,
-}
-
-impl<'a> From<&'a ReplicateStatusCause> for ExitMessage<'a> {
-    fn from(cause: &'a ReplicateStatusCause) -> Self {
-        Self { cause }
-    }
-}
 
 /// Thin wrapper around a [`Client`] that knows how to reach the iExec worker API.
 ///
@@ -121,17 +85,17 @@ impl WorkerApiClient {
     ///
     /// ```rust
     /// use tee_worker_post_compute::{
-    ///     api::worker_api::{ExitMessage, WorkerApiClient},
+    ///     api::worker_api::WorkerApiClient,
     ///     compute::errors::ReplicateStatusCause,
     /// };
     ///
     /// let client = WorkerApiClient::new("http://worker:13100");
-    /// let exit_message = ExitMessage::from(&ReplicateStatusCause::PostComputeInvalidTeeSignature);
+    /// let exit_causes = vec![ReplicateStatusCause::PostComputeInvalidTeeSignature];
     ///
     /// match client.send_exit_cause_for_post_compute_stage(
     ///     "authorization_token",
     ///     "0x123456789abcdef",
-    ///     &exit_message,
+    ///     &exit_causes,
     /// ) {
     ///     Ok(()) => println!("Exit cause reported successfully"),
     ///     Err(error) => eprintln!("Failed to report exit cause: {}", error),
@@ -141,14 +105,14 @@ impl WorkerApiClient {
         &self,
         authorization: &str,
         chain_task_id: &str,
-        exit_cause: &ExitMessage,
+        exit_causes: &[ReplicateStatusCause],
     ) -> Result<(), ReplicateStatusCause> {
         let url = format!("{}/compute/post/{chain_task_id}/exit", self.base_url);
         match self
             .client
             .post(&url)
             .header(AUTHORIZATION, authorization)
-            .json(exit_cause)
+            .json(exit_causes)
             .send()
         {
             Ok(response) => {
@@ -266,30 +230,24 @@ mod tests {
     const CHALLENGE: &str = "challenge";
     const CHAIN_TASK_ID: &str = "0x123456789abcdef";
 
-    // region ExitMessage()
+    // region serialize List of ReplicateStatusCause
     #[test]
-    fn should_serialize_exit_message() {
-        let causes = [
-            (
-                ReplicateStatusCause::PostComputeInvalidTeeSignature,
-                "POST_COMPUTE_INVALID_TEE_SIGNATURE",
-            ),
-            (
-                ReplicateStatusCause::PostComputeWorkerAddressMissing,
-                "POST_COMPUTE_WORKER_ADDRESS_MISSING",
-            ),
-            (
-                ReplicateStatusCause::PostComputeFailedUnknownIssue,
-                "POST_COMPUTE_FAILED_UNKNOWN_ISSUE",
-            ),
+    fn should_serialize_list_of_exit_causes() {
+        let causes = vec![
+            ReplicateStatusCause::PostComputeInvalidTeeSignature,
+            ReplicateStatusCause::PostComputeWorkerAddressMissing,
         ];
+        let serialized = to_string(&causes).expect("Failed to serialize");
+        let expected = r#"[{"cause":"POST_COMPUTE_INVALID_TEE_SIGNATURE","message":"Invalid TEE signature"},{"cause":"POST_COMPUTE_WORKER_ADDRESS_MISSING","message":"Worker address related environment variable is missing"}]"#;
+        assert_eq!(serialized, expected);
+    }
 
-        for (cause, message) in causes {
-            let exit_message = ExitMessage::from(&cause);
-            let serialized = to_string(&exit_message).expect("Failed to serialize");
-            let expected = format!("{{\"cause\":\"{message}\"}}");
-            assert_eq!(serialized, expected);
-        }
+    #[test]
+    fn should_serialize_single_exit_cause() {
+        let causes = vec![ReplicateStatusCause::PostComputeFailedUnknownIssue];
+        let serialized = to_string(&causes).expect("Failed to serialize");
+        let expected = r#"[{"cause":"POST_COMPUTE_FAILED_UNKNOWN_ISSUE","message":"Unexpected error occurred"}]"#;
+        assert_eq!(serialized, expected);
     }
     // endregion
 
@@ -320,9 +278,7 @@ mod tests {
         let mock_server = MockServer::start().await;
         let server_url = mock_server.uri();
 
-        let expected_body = json!({
-            "cause": ReplicateStatusCause::PostComputeInvalidTeeSignature,
-        });
+        let expected_body = json!([ReplicateStatusCause::PostComputeInvalidTeeSignature,]);
 
         Mock::given(method("POST"))
             .and(path(format!("/compute/post/{CHAIN_TASK_ID}/exit")))
@@ -334,13 +290,12 @@ mod tests {
             .await;
 
         let result = tokio::task::spawn_blocking(move || {
-            let exit_message =
-                ExitMessage::from(&ReplicateStatusCause::PostComputeInvalidTeeSignature);
+            let exit_causes = vec![ReplicateStatusCause::PostComputeInvalidTeeSignature];
             let worker_api_client = WorkerApiClient::new(&server_url);
             worker_api_client.send_exit_cause_for_post_compute_stage(
                 CHALLENGE,
                 CHAIN_TASK_ID,
-                &exit_message,
+                &exit_causes,
             )
         })
         .await
@@ -367,13 +322,12 @@ mod tests {
             .await;
 
         let result = tokio::task::spawn_blocking(move || {
-            let exit_message =
-                ExitMessage::from(&ReplicateStatusCause::PostComputeFailedUnknownIssue);
+            let exit_causes = vec![ReplicateStatusCause::PostComputeFailedUnknownIssue];
             let worker_api_client = WorkerApiClient::new(&server_url);
             worker_api_client.send_exit_cause_for_post_compute_stage(
                 CHALLENGE,
                 CHAIN_TASK_ID,
-                &exit_message,
+                &exit_causes,
             )
         })
         .await
