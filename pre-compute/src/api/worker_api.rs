@@ -102,7 +102,7 @@ impl WorkerApiClient {
         &self,
         authorization: &str,
         chain_task_id: &str,
-        exit_causes: &Vec<ReplicateStatusCause>,
+        exit_causes: &[ReplicateStatusCause],
     ) -> Result<(), ReplicateStatusCause> {
         let url = format!("{}/compute/pre/{chain_task_id}/exit", self.base_url);
         match self
