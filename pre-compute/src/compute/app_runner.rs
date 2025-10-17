@@ -191,7 +191,7 @@ mod pre_compute_start_with_app_tests {
         let mock_server = MockServer::start().await;
 
         Mock::given(method("POST"))
-            .and(path(format!("/compute/pre/{CHAIN_TASK_ID}/exit")))
+            .and(path(format!("/compute/pre/{CHAIN_TASK_ID}/exit-causes")))
             .respond_with(ResponseTemplate::new(500))
             .mount(&mock_server)
             .await;
@@ -236,7 +236,7 @@ mod pre_compute_start_with_app_tests {
 
         // Mock the worker API to return success
         Mock::given(method("POST"))
-            .and(path(format!("/compute/pre/{CHAIN_TASK_ID}/exit")))
+            .and(path(format!("/compute/pre/{CHAIN_TASK_ID}/exit-causes")))
             .and(body_json(expected_exit_message_payload))
             .respond_with(ResponseTemplate::new(200))
             .expect(1)

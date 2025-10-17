@@ -220,7 +220,7 @@ mod tests {
         ]);
 
         Mock::given(method("POST"))
-            .and(path(format!("/compute/pre/{CHAIN_TASK_ID}/exit")))
+            .and(path(format!("/compute/pre/{CHAIN_TASK_ID}/exit-causes")))
             .and(header("Authorization", CHALLENGE))
             .and(body_json(&expected_body))
             .respond_with(ResponseTemplate::new(200))
@@ -250,7 +250,7 @@ mod tests {
         let server_url = mock_server.uri();
 
         Mock::given(method("POST"))
-            .and(path(format!("/compute/pre/{CHAIN_TASK_ID}/exit")))
+            .and(path(format!("/compute/pre/{CHAIN_TASK_ID}/exit-causes")))
             .respond_with(ResponseTemplate::new(503).set_body_string("Service Unavailable"))
             .expect(1)
             .mount(&mock_server)
@@ -307,7 +307,7 @@ mod tests {
             assert_eq!(logs.len(), 1);
             assert_eq!(
                 logs[0].body,
-                "HTTP request failed when sending exit causes to wrong_url/compute/pre/0x123456789abcdef/exit: reqwest::Error { kind: Builder, source: RelativeUrlWithoutBase }"
+                "HTTP request failed when sending exit causes to wrong_url/compute/pre/0x123456789abcdef/exit-causes: reqwest::Error { kind: Builder, source: RelativeUrlWithoutBase }"
             );
         });
         assert!(result.is_err());

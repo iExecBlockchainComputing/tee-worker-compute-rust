@@ -143,7 +143,7 @@ impl WorkerApiClient {
         chain_task_id: &str,
         exit_cause: &ExitMessage,
     ) -> Result<(), ReplicateStatusCause> {
-        let url = format!("{}/compute/post/{chain_task_id}/exit", self.base_url);
+        let url = format!("{}/compute/post/{chain_task_id}/exit-causes", self.base_url);
         match self
             .client
             .post(&url)
@@ -325,7 +325,7 @@ mod tests {
         });
 
         Mock::given(method("POST"))
-            .and(path(format!("/compute/post/{CHAIN_TASK_ID}/exit")))
+            .and(path(format!("/compute/post/{CHAIN_TASK_ID}/exit-causes")))
             .and(header("Authorization", CHALLENGE))
             .and(body_json(&expected_body))
             .respond_with(ResponseTemplate::new(200))
@@ -360,7 +360,7 @@ mod tests {
         let server_url = mock_server.uri();
 
         Mock::given(method("POST"))
-            .and(path(format!("/compute/post/{CHAIN_TASK_ID}/exit")))
+            .and(path(format!("/compute/post/{CHAIN_TASK_ID}/exit-causes")))
             .respond_with(ResponseTemplate::new(404))
             .expect(1)
             .mount(&mock_server)
