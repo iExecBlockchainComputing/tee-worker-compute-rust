@@ -65,7 +65,7 @@ mod tests {
     use serde_json::to_string;
 
     #[test]
-    fn test_serialize_dataset_error_with_index() {
+    fn serialize_produces_correct_json_when_error_has_dataset_index() {
         let cause = ReplicateStatusCause::PreComputeDatasetUrlMissing(2);
         let serialized = to_string(&cause).unwrap();
         assert_eq!(
@@ -75,7 +75,7 @@ mod tests {
     }
 
     #[test]
-    fn test_serialize_non_dataset_error() {
+    fn serialize_produces_correct_json_when_error_has_no_index() {
         let cause = ReplicateStatusCause::PreComputeInvalidTeeSignature;
         let serialized = to_string(&cause).unwrap();
         assert_eq!(
@@ -85,7 +85,7 @@ mod tests {
     }
 
     #[test]
-    fn test_serialize_all_dataset_errors() {
+    fn serialize_produces_correct_json_when_multiple_dataset_errors_with_indices() {
         let test_cases = vec![
             (
                 ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing(1),
@@ -116,7 +116,7 @@ mod tests {
     }
 
     #[test]
-    fn test_serialize_vec_of_errors() {
+    fn serialize_produces_correct_json_when_vector_of_multiple_errors() {
         let causes = vec![
             ReplicateStatusCause::PreComputeDatasetUrlMissing(5),
             ReplicateStatusCause::PreComputeInvalidDatasetChecksum(99),

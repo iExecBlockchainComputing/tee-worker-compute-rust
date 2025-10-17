@@ -143,7 +143,7 @@ mod tests {
 
     // region Serialization tests
     #[test]
-    fn should_serialize_replicate_status_cause() {
+    fn serialize_replicate_status_cause_succeeds_when_single_cause() {
         let causes = vec![
             (
                 ReplicateStatusCause::PreComputeInvalidTeeSignature,
@@ -170,7 +170,7 @@ mod tests {
     }
 
     #[test]
-    fn should_serialize_vec_of_causes() {
+    fn serialize_vec_of_causes_succeeds_when_multiple_causes() {
         let causes = vec![
             ReplicateStatusCause::PreComputeDatasetUrlMissing(0),
             ReplicateStatusCause::PreComputeInvalidDatasetChecksum(1),
@@ -184,7 +184,7 @@ mod tests {
 
     // region get_worker_api_client
     #[test]
-    fn should_get_worker_api_client_with_env_var() {
+    fn from_env_creates_client_with_custom_host_when_env_var_set() {
         with_vars(
             vec![(WorkerHostEnvVar.name(), Some("custom-worker-host:9999"))],
             || {
@@ -195,7 +195,7 @@ mod tests {
     }
 
     #[test]
-    fn should_get_worker_api_client_without_env_var() {
+    fn from_env_creates_client_with_default_host_when_env_var_unset() {
         temp_env::with_vars_unset(vec![WorkerHostEnvVar.name()], || {
             let client = WorkerApiClient::from_env();
             assert_eq!(client.base_url, format!("http://{DEFAULT_WORKER_HOST}"));
@@ -208,7 +208,7 @@ mod tests {
     const CHAIN_TASK_ID: &str = "0x123456789abcdef";
 
     #[tokio::test]
-    async fn should_send_exit_causes() {
+    async fn send_exit_causes_succeeds_when_api_returns_success() {
         let mock_server = MockServer::start().await;
         let server_url = mock_server.uri();
 
@@ -244,7 +244,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_not_send_exit_causes() {
+    async fn send_exit_causes_fails_when_api_returns_error() {
         testing_logger::setup();
         let mock_server = MockServer::start().await;
         let server_url = mock_server.uri();
@@ -289,7 +289,7 @@ mod tests {
     }
 
     #[test]
-    fn test_send_exit_causes_http_request_failure() {
+    fn send_exit_causes_fails_when_http_request_invalid() {
         testing_logger::setup();
         let exit_causes = vec![ReplicateStatusCause::PreComputeFailedUnknownIssue];
         let worker_api_client = WorkerApiClient::new("wrong_url");
