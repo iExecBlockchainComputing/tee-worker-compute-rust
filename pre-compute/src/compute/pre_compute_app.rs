@@ -59,9 +59,10 @@ impl PreComputeAppTrait for PreComputeApp {
         // TODO: Collect all errors instead of propagating immediately, and return the list of errors
         self.pre_compute_args = PreComputeArgs::read_args()?;
         self.check_output_folder()?;
-        for dataset in &self.pre_compute_args.datasets {
-            let encrypted_content = dataset.download_encrypted_dataset(&self.chain_task_id)?;
-            let plain_content = dataset.decrypt_dataset(&encrypted_content)?;
+        for (index, dataset) in self.pre_compute_args.datasets.iter().enumerate() {
+            let encrypted_content =
+                dataset.download_encrypted_dataset(&self.chain_task_id, index)?;
+            let plain_content = dataset.decrypt_dataset(&encrypted_content, index)?;
             self.save_plain_dataset_file(&plain_content, &dataset.filename)?;
         }
         self.download_input_files()?;

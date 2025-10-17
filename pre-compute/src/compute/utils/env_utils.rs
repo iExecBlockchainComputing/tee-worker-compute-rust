@@ -202,7 +202,7 @@ mod tests {
     #[test]
     fn get_env_var_or_error_succeeds_when_indexed_variables() {
         let env_var = TeeSessionEnvironmentVariable::IexecDatasetChecksum(1);
-        let status_cause = ReplicateStatusCause::PreComputeDatasetChecksumMissing;
+        let status_cause = ReplicateStatusCause::PreComputeDatasetChecksumMissing(1);
 
         temp_env::with_var("IEXEC_DATASET_1_CHECKSUM", Some("abc123def456"), || {
             let result = get_env_var_or_error(env_var, status_cause.clone());

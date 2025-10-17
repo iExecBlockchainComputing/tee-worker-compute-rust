@@ -88,19 +88,19 @@ impl PreComputeArgs {
         for i in start_index..=iexec_bulk_slice_size {
             let url = get_env_var_or_error(
                 TeeSessionEnvironmentVariable::IexecDatasetUrl(i),
-                ReplicateStatusCause::PreComputeDatasetUrlMissing, // TODO: replace with a more specific error for bulk dataset
+                ReplicateStatusCause::PreComputeDatasetUrlMissing(i),
             )?;
             let checksum = get_env_var_or_error(
                 TeeSessionEnvironmentVariable::IexecDatasetChecksum(i),
-                ReplicateStatusCause::PreComputeDatasetChecksumMissing, // TODO: replace with a more specific error for bulk dataset
+                ReplicateStatusCause::PreComputeDatasetChecksumMissing(i),
             )?;
             let filename = get_env_var_or_error(
                 TeeSessionEnvironmentVariable::IexecDatasetFilename(i),
-                ReplicateStatusCause::PreComputeDatasetFilenameMissing, // TODO: replace with a more specific error for bulk dataset
+                ReplicateStatusCause::PreComputeDatasetFilenameMissing(i),
             )?;
             let key = get_env_var_or_error(
                 TeeSessionEnvironmentVariable::IexecDatasetKey(i),
-                ReplicateStatusCause::PreComputeDatasetKeyMissing, // TODO: replace with a more specific error for bulk dataset
+                ReplicateStatusCause::PreComputeDatasetKeyMissing(i),
             )?;
 
             datasets.push(Dataset::new(url, checksum, filename, key));
@@ -118,7 +118,7 @@ impl PreComputeArgs {
         for i in 1..=input_files_nb {
             let url = get_env_var_or_error(
                 TeeSessionEnvironmentVariable::IexecInputFileUrlPrefix(i),
-                ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing,
+                ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing(i),
             )?;
             input_files.push(url);
         }
@@ -427,7 +427,7 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                ReplicateStatusCause::PreComputeDatasetUrlMissing
+                ReplicateStatusCause::PreComputeDatasetUrlMissing(1)
             );
         });
     }
@@ -446,7 +446,7 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                ReplicateStatusCause::PreComputeDatasetChecksumMissing
+                ReplicateStatusCause::PreComputeDatasetChecksumMissing(2)
             );
         });
     }
@@ -465,7 +465,7 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                ReplicateStatusCause::PreComputeDatasetFilenameMissing
+                ReplicateStatusCause::PreComputeDatasetFilenameMissing(2)
             );
         });
     }
@@ -484,7 +484,7 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                ReplicateStatusCause::PreComputeDatasetKeyMissing
+                ReplicateStatusCause::PreComputeDatasetKeyMissing(1)
             );
         });
     }
@@ -508,23 +508,23 @@ mod tests {
             ),
             (
                 IexecDatasetUrl(0),
-                ReplicateStatusCause::PreComputeDatasetUrlMissing,
+                ReplicateStatusCause::PreComputeDatasetUrlMissing(0),
             ),
             (
                 IexecDatasetKey(0),
-                ReplicateStatusCause::PreComputeDatasetKeyMissing,
+                ReplicateStatusCause::PreComputeDatasetKeyMissing(0),
             ),
             (
                 IexecDatasetChecksum(0),
-                ReplicateStatusCause::PreComputeDatasetChecksumMissing,
+                ReplicateStatusCause::PreComputeDatasetChecksumMissing(0),
             ),
             (
                 IexecDatasetFilename(0),
-                ReplicateStatusCause::PreComputeDatasetFilenameMissing,
+                ReplicateStatusCause::PreComputeDatasetFilenameMissing(0),
             ),
             (
                 IexecInputFileUrlPrefix(1),
-                ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing,
+                ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing(1),
             ),
         ];
         for (env_var, error) in missing_env_var_causes {
