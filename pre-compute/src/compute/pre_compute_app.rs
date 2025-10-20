@@ -59,10 +59,9 @@ impl PreComputeAppTrait for PreComputeApp {
         // TODO: Collect all errors instead of propagating immediately, and return the list of errors
         self.pre_compute_args = PreComputeArgs::read_args()?;
         self.check_output_folder()?;
-        for (index, dataset) in self.pre_compute_args.datasets.iter().enumerate() {
-            let encrypted_content =
-                dataset.download_encrypted_dataset(&self.chain_task_id, index)?;
-            let plain_content = dataset.decrypt_dataset(&encrypted_content, index)?;
+        for dataset in self.pre_compute_args.datasets.iter() {
+            let encrypted_content = dataset.download_encrypted_dataset(&self.chain_task_id)?;
+            let plain_content = dataset.decrypt_dataset(&encrypted_content)?;
             self.save_plain_dataset_file(&plain_content, &dataset.filename)?;
         }
         self.download_input_files()?;
@@ -190,6 +189,7 @@ mod tests {
                 is_dataset_required: true,
                 iexec_bulk_slice_size: 0,
                 datasets: vec![Dataset {
+                    address: "0xDatasetAddress".to_string(),
                     url: HTTP_DATASET_URL.to_string(),
                     checksum: DATASET_CHECKSUM.to_string(),
                     filename: PLAIN_DATA_FILE.to_string(),

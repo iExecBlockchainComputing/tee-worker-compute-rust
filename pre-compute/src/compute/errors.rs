@@ -10,17 +10,17 @@ pub enum ReplicateStatusCause {
     #[error("input file URL {0} is missing")]
     PreComputeAtLeastOneInputFileUrlMissing(usize),
     #[error("Dataset checksum related environment variable is missing for dataset {0}")]
-    PreComputeDatasetChecksumMissing(usize),
+    PreComputeDatasetChecksumMissing(String),
     #[error("Failed to decrypt dataset {0}")]
-    PreComputeDatasetDecryptionFailed(usize),
+    PreComputeDatasetDecryptionFailed(String),
     #[error("Failed to download encrypted dataset file for dataset {0}")]
-    PreComputeDatasetDownloadFailed(usize),
+    PreComputeDatasetDownloadFailed(String),
     #[error("Dataset filename related environment variable is missing for dataset {0}")]
-    PreComputeDatasetFilenameMissing(usize),
+    PreComputeDatasetFilenameMissing(String),
     #[error("Dataset key related environment variable is missing for dataset {0}")]
-    PreComputeDatasetKeyMissing(usize),
+    PreComputeDatasetKeyMissing(String),
     #[error("Dataset URL related environment variable is missing for dataset {0}")]
-    PreComputeDatasetUrlMissing(usize),
+    PreComputeDatasetUrlMissing(String),
     #[error("Unexpected error occurred")]
     PreComputeFailedUnknownIssue,
     #[error("Invalid TEE signature")]
@@ -32,7 +32,7 @@ pub enum ReplicateStatusCause {
     #[error("Input files number related environment variable is missing")]
     PreComputeInputFilesNumberMissing,
     #[error("Invalid dataset checksum for dataset {0}")]
-    PreComputeInvalidDatasetChecksum(usize),
+    PreComputeInvalidDatasetChecksum(String),
     #[error("Output folder related environment variable is missing")]
     PreComputeOutputFolderNotFound,
     #[error("Output path related environment variable is missing")]
@@ -64,13 +64,15 @@ mod tests {
     use super::*;
     use serde_json::to_string;
 
+    const DATASET_ADDRESS: &str = "0xDatasetAddress";
+
     #[test]
     fn serialize_produces_correct_json_when_error_has_dataset_index() {
-        let cause = ReplicateStatusCause::PreComputeDatasetUrlMissing(2);
+        let cause = ReplicateStatusCause::PreComputeDatasetUrlMissing(DATASET_ADDRESS.to_string());
         let serialized = to_string(&cause).unwrap();
         assert_eq!(
             serialized,
-            r#"{"cause":"PRE_COMPUTE_DATASET_URL_MISSING","message":"Dataset URL related environment variable is missing for dataset 2"}"#
+            r#"{"cause":"PRE_COMPUTE_DATASET_URL_MISSING","message":"Dataset URL related environment variable is missing for dataset 0xDatasetAddress"}"#
         );
     }
 
@@ -92,20 +94,22 @@ mod tests {
                 r#"{"cause":"PRE_COMPUTE_AT_LEAST_ONE_INPUT_FILE_URL_MISSING","message":"input file URL 1 is missing"}"#,
             ),
             (
-                ReplicateStatusCause::PreComputeDatasetChecksumMissing(3),
-                r#"{"cause":"PRE_COMPUTE_DATASET_CHECKSUM_MISSING","message":"Dataset checksum related environment variable is missing for dataset 3"}"#,
+                ReplicateStatusCause::PreComputeDatasetChecksumMissing(DATASET_ADDRESS.to_string()),
+                r#"{"cause":"PRE_COMPUTE_DATASET_CHECKSUM_MISSING","message":"Dataset checksum related environment variable is missing for dataset 0xDatasetAddress"}"#,
             ),
             (
-                ReplicateStatusCause::PreComputeDatasetDecryptionFailed(0),
-                r#"{"cause":"PRE_COMPUTE_DATASET_DECRYPTION_FAILED","message":"Failed to decrypt dataset 0"}"#,
+                ReplicateStatusCause::PreComputeDatasetDecryptionFailed(
+                    DATASET_ADDRESS.to_string(),
+                ),
+                r#"{"cause":"PRE_COMPUTE_DATASET_DECRYPTION_FAILED","message":"Failed to decrypt dataset 0xDatasetAddress"}"#,
             ),
             (
-                ReplicateStatusCause::PreComputeDatasetDownloadFailed(5),
-                r#"{"cause":"PRE_COMPUTE_DATASET_DOWNLOAD_FAILED","message":"Failed to download encrypted dataset file for dataset 5"}"#,
+                ReplicateStatusCause::PreComputeDatasetDownloadFailed(DATASET_ADDRESS.to_string()),
+                r#"{"cause":"PRE_COMPUTE_DATASET_DOWNLOAD_FAILED","message":"Failed to download encrypted dataset file for dataset 0xDatasetAddress"}"#,
             ),
             (
-                ReplicateStatusCause::PreComputeInvalidDatasetChecksum(2),
-                r#"{"cause":"PRE_COMPUTE_INVALID_DATASET_CHECKSUM","message":"Invalid dataset checksum for dataset 2"}"#,
+                ReplicateStatusCause::PreComputeInvalidDatasetChecksum(DATASET_ADDRESS.to_string()),
+                r#"{"cause":"PRE_COMPUTE_INVALID_DATASET_CHECKSUM","message":"Invalid dataset checksum for dataset 0xDatasetAddress"}"#,
             ),
         ];
 
@@ -118,12 +122,12 @@ mod tests {
     #[test]
     fn serialize_produces_correct_json_when_vector_of_multiple_errors() {
         let causes = vec![
-            ReplicateStatusCause::PreComputeDatasetUrlMissing(5),
-            ReplicateStatusCause::PreComputeInvalidDatasetChecksum(99),
+            ReplicateStatusCause::PreComputeDatasetUrlMissing(DATASET_ADDRESS.to_string()),
+            ReplicateStatusCause::PreComputeInvalidDatasetChecksum("0xAnotherDataset".to_string()),
         ];
 
         let serialized = to_string(&causes).unwrap();
-        let expected = r#"[{"cause":"PRE_COMPUTE_DATASET_URL_MISSING","message":"Dataset URL related environment variable is missing for dataset 5"},{"cause":"PRE_COMPUTE_INVALID_DATASET_CHECKSUM","message":"Invalid dataset checksum for dataset 99"}]"#;
+        let expected = r#"[{"cause":"PRE_COMPUTE_DATASET_URL_MISSING","message":"Dataset URL related environment variable is missing for dataset 0xDatasetAddress"},{"cause":"PRE_COMPUTE_INVALID_DATASET_CHECKSUM","message":"Invalid dataset checksum for dataset 0xAnotherDataset"}]"#;
         assert_eq!(serialized, expected);
     }
 }
