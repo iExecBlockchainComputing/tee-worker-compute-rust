@@ -71,6 +71,8 @@ mod tests {
     use super::*;
     use temp_env;
 
+    const DATASET_ADDRESS: &str = "0xDatasetAddress";
+
     #[test]
     fn name_succeeds_when_simple_environment_variable_names() {
         assert_eq!(
@@ -202,7 +204,8 @@ mod tests {
     #[test]
     fn get_env_var_or_error_succeeds_when_indexed_variables() {
         let env_var = TeeSessionEnvironmentVariable::IexecDatasetChecksum(1);
-        let status_cause = ReplicateStatusCause::PreComputeDatasetChecksumMissing;
+        let status_cause =
+            ReplicateStatusCause::PreComputeDatasetChecksumMissing(DATASET_ADDRESS.to_string());
 
         temp_env::with_var("IEXEC_DATASET_1_CHECKSUM", Some("abc123def456"), || {
             let result = get_env_var_or_error(env_var, status_cause.clone());

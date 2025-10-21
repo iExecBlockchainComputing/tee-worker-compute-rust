@@ -86,21 +86,21 @@ impl PreComputeArgs {
         // Read datasets
         let start_index = if is_dataset_required { 0 } else { 1 };
         for i in start_index..=iexec_bulk_slice_size {
+            let filename = get_env_var_or_error(
+                TeeSessionEnvironmentVariable::IexecDatasetFilename(i),
+                ReplicateStatusCause::PreComputeDatasetFilenameMissing(format!("dataset_{i}")),
+            )?;
             let url = get_env_var_or_error(
                 TeeSessionEnvironmentVariable::IexecDatasetUrl(i),
-                ReplicateStatusCause::PreComputeDatasetUrlMissing, // TODO: replace with a more specific error for bulk dataset
+                ReplicateStatusCause::PreComputeDatasetUrlMissing(filename.clone()),
             )?;
             let checksum = get_env_var_or_error(
                 TeeSessionEnvironmentVariable::IexecDatasetChecksum(i),
-                ReplicateStatusCause::PreComputeDatasetChecksumMissing, // TODO: replace with a more specific error for bulk dataset
-            )?;
-            let filename = get_env_var_or_error(
-                TeeSessionEnvironmentVariable::IexecDatasetFilename(i),
-                ReplicateStatusCause::PreComputeDatasetFilenameMissing, // TODO: replace with a more specific error for bulk dataset
+                ReplicateStatusCause::PreComputeDatasetChecksumMissing(filename.clone()),
             )?;
             let key = get_env_var_or_error(
                 TeeSessionEnvironmentVariable::IexecDatasetKey(i),
-                ReplicateStatusCause::PreComputeDatasetKeyMissing, // TODO: replace with a more specific error for bulk dataset
+                ReplicateStatusCause::PreComputeDatasetKeyMissing(filename.clone()),
             )?;
 
             datasets.push(Dataset::new(url, checksum, filename, key));
@@ -118,7 +118,7 @@ impl PreComputeArgs {
         for i in 1..=input_files_nb {
             let url = get_env_var_or_error(
                 TeeSessionEnvironmentVariable::IexecInputFileUrlPrefix(i),
-                ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing,
+                ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing(i),
             )?;
             input_files.push(url);
         }
@@ -427,7 +427,7 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                ReplicateStatusCause::PreComputeDatasetUrlMissing
+                ReplicateStatusCause::PreComputeDatasetUrlMissing("bulk-dataset-1.txt".to_string())
             );
         });
     }
@@ -446,7 +446,9 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                ReplicateStatusCause::PreComputeDatasetChecksumMissing
+                ReplicateStatusCause::PreComputeDatasetChecksumMissing(
+                    "bulk-dataset-2.txt".to_string()
+                )
             );
         });
     }
@@ -465,7 +467,7 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                ReplicateStatusCause::PreComputeDatasetFilenameMissing
+                ReplicateStatusCause::PreComputeDatasetFilenameMissing("dataset_2".to_string())
             );
         });
     }
@@ -484,7 +486,7 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                ReplicateStatusCause::PreComputeDatasetKeyMissing
+                ReplicateStatusCause::PreComputeDatasetKeyMissing("bulk-dataset-1.txt".to_string())
             );
         });
     }
@@ -508,23 +510,25 @@ mod tests {
             ),
             (
                 IexecDatasetUrl(0),
-                ReplicateStatusCause::PreComputeDatasetUrlMissing,
+                ReplicateStatusCause::PreComputeDatasetUrlMissing(DATASET_FILENAME.to_string()),
             ),
             (
                 IexecDatasetKey(0),
-                ReplicateStatusCause::PreComputeDatasetKeyMissing,
+                ReplicateStatusCause::PreComputeDatasetKeyMissing(DATASET_FILENAME.to_string()),
             ),
             (
                 IexecDatasetChecksum(0),
-                ReplicateStatusCause::PreComputeDatasetChecksumMissing,
+                ReplicateStatusCause::PreComputeDatasetChecksumMissing(
+                    DATASET_FILENAME.to_string(),
+                ),
             ),
             (
                 IexecDatasetFilename(0),
-                ReplicateStatusCause::PreComputeDatasetFilenameMissing,
+                ReplicateStatusCause::PreComputeDatasetFilenameMissing("dataset_0".to_string()),
             ),
             (
                 IexecInputFileUrlPrefix(1),
-                ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing,
+                ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing(1),
             ),
         ];
         for (env_var, error) in missing_env_var_causes {
