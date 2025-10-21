@@ -94,11 +94,15 @@ mod tests {
                 r#"{"cause":"PRE_COMPUTE_AT_LEAST_ONE_INPUT_FILE_URL_MISSING","message":"input file URL 1 is missing"}"#,
             ),
             (
-                ReplicateStatusCause::PreComputeDatasetChecksumMissing(DATASET_FILENAME.to_string()),
+                ReplicateStatusCause::PreComputeDatasetChecksumMissing(
+                    DATASET_FILENAME.to_string(),
+                ),
                 r#"{"cause":"PRE_COMPUTE_DATASET_CHECKSUM_MISSING","message":"Dataset checksum related environment variable is missing for dataset 0xDatasetAddress"}"#,
             ),
             (
-                ReplicateStatusCause::PreComputeDatasetDecryptionFailed(DATASET_FILENAME.to_string()),
+                ReplicateStatusCause::PreComputeDatasetDecryptionFailed(
+                    DATASET_FILENAME.to_string(),
+                ),
                 r#"{"cause":"PRE_COMPUTE_DATASET_DECRYPTION_FAILED","message":"Failed to decrypt dataset 0xDatasetAddress"}"#,
             ),
             (
@@ -106,7 +110,9 @@ mod tests {
                 r#"{"cause":"PRE_COMPUTE_DATASET_DOWNLOAD_FAILED","message":"Failed to download encrypted dataset file for dataset 0xDatasetAddress"}"#,
             ),
             (
-                ReplicateStatusCause::PreComputeInvalidDatasetChecksum(DATASET_FILENAME.to_string()),
+                ReplicateStatusCause::PreComputeInvalidDatasetChecksum(
+                    DATASET_FILENAME.to_string(),
+                ),
                 r#"{"cause":"PRE_COMPUTE_INVALID_DATASET_CHECKSUM","message":"Invalid dataset checksum for dataset 0xDatasetAddress"}"#,
             ),
         ];
