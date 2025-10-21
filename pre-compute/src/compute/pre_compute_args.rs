@@ -86,28 +86,24 @@ impl PreComputeArgs {
         // Read datasets
         let start_index = if is_dataset_required { 0 } else { 1 };
         for i in start_index..=iexec_bulk_slice_size {
-            let address = get_env_var_or_error(
-                TeeSessionEnvironmentVariable::IexecDatasetAddress(i),
-                ReplicateStatusCause::PreComputeFailedUnknownIssue, // TODO: add specific error
+            let filename = get_env_var_or_error(
+                TeeSessionEnvironmentVariable::IexecDatasetFilename(i),
+                ReplicateStatusCause::PreComputeDatasetFilenameMissing(format!("dataset_{i}")),
             )?;
             let url = get_env_var_or_error(
                 TeeSessionEnvironmentVariable::IexecDatasetUrl(i),
-                ReplicateStatusCause::PreComputeDatasetUrlMissing(address.clone()),
+                ReplicateStatusCause::PreComputeDatasetUrlMissing(filename.clone()),
             )?;
             let checksum = get_env_var_or_error(
                 TeeSessionEnvironmentVariable::IexecDatasetChecksum(i),
-                ReplicateStatusCause::PreComputeDatasetChecksumMissing(address.clone()),
-            )?;
-            let filename = get_env_var_or_error(
-                TeeSessionEnvironmentVariable::IexecDatasetFilename(i),
-                ReplicateStatusCause::PreComputeDatasetFilenameMissing(address.clone()),
+                ReplicateStatusCause::PreComputeDatasetChecksumMissing(filename.clone()),
             )?;
             let key = get_env_var_or_error(
                 TeeSessionEnvironmentVariable::IexecDatasetKey(i),
-                ReplicateStatusCause::PreComputeDatasetKeyMissing(address.clone()),
+                ReplicateStatusCause::PreComputeDatasetKeyMissing(filename.clone()),
             )?;
 
-            datasets.push(Dataset::new(address.clone(), url, checksum, filename, key));
+            datasets.push(Dataset::new(url, checksum, filename, key));
         }
 
         let input_files_nb_str = get_env_var_or_error(
@@ -149,7 +145,6 @@ mod tests {
     const DATASET_KEY: &str = "datasetKey123";
     const DATASET_CHECKSUM: &str = "0x123checksum";
     const DATASET_FILENAME: &str = "dataset.txt";
-    const DATASET_ADDRESS: &str = "0xDataset123Address";
 
     fn setup_basic_env_vars() -> HashMap<String, String> {
         let mut vars = HashMap::new();
@@ -162,7 +157,6 @@ mod tests {
 
     fn setup_dataset_env_vars() -> HashMap<String, String> {
         let mut vars = HashMap::new();
-        vars.insert(IexecDatasetAddress(0).name(), DATASET_ADDRESS.to_string());
         vars.insert(IexecDatasetUrl(0).name(), DATASET_URL.to_string());
         vars.insert(IexecDatasetKey(0).name(), DATASET_KEY.to_string());
         vars.insert(IexecDatasetChecksum(0).name(), DATASET_CHECKSUM.to_string());
@@ -189,10 +183,6 @@ mod tests {
         vars.insert(IexecBulkSliceSize.name(), count.to_string());
 
         for i in 1..=count {
-            vars.insert(
-                IexecDatasetAddress(i).name(),
-                format!("0xBulkDataset{i}Address"),
-            );
             vars.insert(
                 IexecDatasetUrl(i).name(),
                 format!("https://bulk-dataset-{i}.bin"),
@@ -247,7 +237,6 @@ mod tests {
 
             assert_eq!(args.output_dir, OUTPUT_DIR);
             assert!(args.is_dataset_required);
-            assert_eq!(args.datasets[0].address, DATASET_ADDRESS.to_string());
             assert_eq!(args.datasets[0].url, DATASET_URL.to_string());
             assert_eq!(args.datasets[0].key, DATASET_KEY.to_string());
             assert_eq!(args.datasets[0].checksum, DATASET_CHECKSUM.to_string());
@@ -357,21 +346,18 @@ mod tests {
             assert_eq!(args.input_files.len(), 0);
 
             // Check first bulk dataset
-            assert_eq!(args.datasets[0].address, "0xBulkDataset1Address");
             assert_eq!(args.datasets[0].url, "https://bulk-dataset-1.bin");
             assert_eq!(args.datasets[0].checksum, "0x123checksum");
             assert_eq!(args.datasets[0].filename, "bulk-dataset-1.txt");
             assert_eq!(args.datasets[0].key, "bulkKey123");
 
             // Check second bulk dataset
-            assert_eq!(args.datasets[1].address, "0xBulkDataset2Address");
             assert_eq!(args.datasets[1].url, "https://bulk-dataset-2.bin");
             assert_eq!(args.datasets[1].checksum, "0x223checksum");
             assert_eq!(args.datasets[1].filename, "bulk-dataset-2.txt");
             assert_eq!(args.datasets[1].key, "bulkKey223");
 
             // Check third bulk dataset
-            assert_eq!(args.datasets[2].address, "0xBulkDataset3Address");
             assert_eq!(args.datasets[2].url, "https://bulk-dataset-3.bin");
             assert_eq!(args.datasets[2].checksum, "0x323checksum");
             assert_eq!(args.datasets[2].filename, "bulk-dataset-3.txt");
@@ -399,16 +385,13 @@ mod tests {
             assert_eq!(args.input_files.len(), 0);
 
             // Check regular dataset (first in list)
-            assert_eq!(args.datasets[0].address, DATASET_ADDRESS);
             assert_eq!(args.datasets[0].url, DATASET_URL);
             assert_eq!(args.datasets[0].checksum, DATASET_CHECKSUM);
             assert_eq!(args.datasets[0].filename, DATASET_FILENAME);
             assert_eq!(args.datasets[0].key, DATASET_KEY);
 
             // Check bulk datasets
-            assert_eq!(args.datasets[1].address, "0xBulkDataset1Address");
             assert_eq!(args.datasets[1].url, "https://bulk-dataset-1.bin");
-            assert_eq!(args.datasets[2].address, "0xBulkDataset2Address");
             assert_eq!(args.datasets[2].url, "https://bulk-dataset-2.bin");
         });
     }
@@ -444,9 +427,7 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                ReplicateStatusCause::PreComputeDatasetUrlMissing(
-                    "0xBulkDataset1Address".to_string()
-                )
+                ReplicateStatusCause::PreComputeDatasetUrlMissing("bulk-dataset-1.txt".to_string())
             );
         });
     }
@@ -466,7 +447,7 @@ mod tests {
             assert_eq!(
                 result.unwrap_err(),
                 ReplicateStatusCause::PreComputeDatasetChecksumMissing(
-                    "0xBulkDataset2Address".to_string()
+                    "bulk-dataset-2.txt".to_string()
                 )
             );
         });
@@ -486,9 +467,7 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                ReplicateStatusCause::PreComputeDatasetFilenameMissing(
-                    "0xBulkDataset2Address".to_string()
-                )
+                ReplicateStatusCause::PreComputeDatasetFilenameMissing("dataset_2".to_string())
             );
         });
     }
@@ -507,9 +486,7 @@ mod tests {
             assert!(result.is_err());
             assert_eq!(
                 result.unwrap_err(),
-                ReplicateStatusCause::PreComputeDatasetKeyMissing(
-                    "0xBulkDataset1Address".to_string()
-                )
+                ReplicateStatusCause::PreComputeDatasetKeyMissing("bulk-dataset-1.txt".to_string())
             );
         });
     }
@@ -532,24 +509,22 @@ mod tests {
                 ReplicateStatusCause::PreComputeInputFilesNumberMissing,
             ),
             (
-                IexecDatasetAddress(0),
-                ReplicateStatusCause::PreComputeFailedUnknownIssue,
-            ),
-            (
                 IexecDatasetUrl(0),
-                ReplicateStatusCause::PreComputeDatasetUrlMissing(DATASET_ADDRESS.to_string()),
+                ReplicateStatusCause::PreComputeDatasetUrlMissing(DATASET_FILENAME.to_string()),
             ),
             (
                 IexecDatasetKey(0),
-                ReplicateStatusCause::PreComputeDatasetKeyMissing(DATASET_ADDRESS.to_string()),
+                ReplicateStatusCause::PreComputeDatasetKeyMissing(DATASET_FILENAME.to_string()),
             ),
             (
                 IexecDatasetChecksum(0),
-                ReplicateStatusCause::PreComputeDatasetChecksumMissing(DATASET_ADDRESS.to_string()),
+                ReplicateStatusCause::PreComputeDatasetChecksumMissing(
+                    DATASET_FILENAME.to_string(),
+                ),
             ),
             (
                 IexecDatasetFilename(0),
-                ReplicateStatusCause::PreComputeDatasetFilenameMissing(DATASET_ADDRESS.to_string()),
+                ReplicateStatusCause::PreComputeDatasetFilenameMissing("dataset_0".to_string()),
             ),
             (
                 IexecInputFileUrlPrefix(1),

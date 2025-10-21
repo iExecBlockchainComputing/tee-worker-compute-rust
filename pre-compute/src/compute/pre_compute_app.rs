@@ -189,7 +189,6 @@ mod tests {
                 is_dataset_required: true,
                 iexec_bulk_slice_size: 0,
                 datasets: vec![Dataset {
-                    address: "0xDatasetAddress".to_string(),
                     url: HTTP_DATASET_URL.to_string(),
                     checksum: DATASET_CHECKSUM.to_string(),
                     filename: PLAIN_DATA_FILE.to_string(),

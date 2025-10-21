@@ -27,7 +27,6 @@ const AES_IV_LENGTH: usize = 16;
 #[cfg_attr(test, derive(Debug))]
 #[derive(Clone, Default)]
 pub struct Dataset {
-    pub address: String,
     pub url: String,
     pub checksum: String,
     pub filename: String,
@@ -35,15 +34,8 @@ pub struct Dataset {
 }
 
 impl Dataset {
-    pub fn new(
-        address: String,
-        url: String,
-        checksum: String,
-        filename: String,
-        key: String,
-    ) -> Self {
+    pub fn new(url: String, checksum: String, filename: String, key: String) -> Self {
         Dataset {
-            address,
             url,
             checksum,
             filename,
@@ -88,7 +80,7 @@ impl Dataset {
             download_from_url(&self.url)
         }
         .ok_or(ReplicateStatusCause::PreComputeDatasetDownloadFailed(
-            self.address.clone(),
+            self.filename.clone(),
         ))?;
 
         info!("Checking encrypted dataset checksum [chainTaskId:{chain_task_id}]");
@@ -100,7 +92,7 @@ impl Dataset {
                 self.checksum
             );
             return Err(ReplicateStatusCause::PreComputeInvalidDatasetChecksum(
-                self.address.clone(),
+                self.filename.clone(),
             ));
         }
 
@@ -126,12 +118,12 @@ impl Dataset {
         encrypted_content: &[u8],
     ) -> Result<Vec<u8>, ReplicateStatusCause> {
         let key = general_purpose::STANDARD.decode(&self.key).map_err(|_| {
-            ReplicateStatusCause::PreComputeDatasetDecryptionFailed(self.address.clone())
+            ReplicateStatusCause::PreComputeDatasetDecryptionFailed(self.filename.clone())
         })?;
 
         if encrypted_content.len() < AES_IV_LENGTH || key.len() != AES_KEY_LENGTH {
             return Err(ReplicateStatusCause::PreComputeDatasetDecryptionFailed(
-                self.address.clone(),
+                self.filename.clone(),
             ));
         }
 
@@ -142,7 +134,7 @@ impl Dataset {
         Aes256CbcDec::new(key_slice.into(), iv_slice.into())
             .decrypt_padded_vec_mut::<Pkcs7>(ciphertext)
             .map_err(|_| {
-                ReplicateStatusCause::PreComputeDatasetDecryptionFailed(self.address.clone())
+                ReplicateStatusCause::PreComputeDatasetDecryptionFailed(self.filename.clone())
             })
     }
 }
@@ -160,12 +152,11 @@ mod tests {
         "0x02a12ef127dcfbdb294a090c8f0b69a0ca30b7940fc36cabf971f488efd374d7";
     const ENCRYPTED_DATASET_KEY: &str = "ubA6H9emVPJT91/flYAmnKHC0phSV3cfuqsLxQfgow0=";
     const HTTP_DATASET_URL: &str = "https://raw.githubusercontent.com/iExecBlockchainComputing/tee-worker-pre-compute-rust/main/src/tests_resources/encrypted-data.bin";
-    const PLAIN_DATA_FILE: &str = "plain-data.txt";
+    const PLAIN_DATA_FILE: &str = "0xDatasetAddress";
     const IPFS_DATASET_URL: &str = "/ipfs/QmUVhChbLFiuzNK1g2GsWyWEiad7SXPqARnWzGumgziwEp";
 
     fn get_test_dataset() -> Dataset {
         Dataset::new(
-            "0xDatasetAddress".to_string(),
             HTTP_DATASET_URL.to_string(),
             DATASET_CHECKSUM.to_string(),
             PLAIN_DATA_FILE.to_string(),
@@ -185,12 +176,11 @@ mod tests {
     fn download_encrypted_dataset_failure_with_invalid_dataset_url() {
         let mut dataset = get_test_dataset();
         dataset.url = "http://bad-url".to_string();
-        dataset.address = "0xbaddataset".to_string();
         let actual_content = dataset.download_encrypted_dataset(CHAIN_TASK_ID);
         assert_eq!(
             actual_content,
             Err(ReplicateStatusCause::PreComputeDatasetDownloadFailed(
-                "0xbaddataset".to_string()
+                PLAIN_DATA_FILE.to_string()
             ))
         );
     }
@@ -210,10 +200,9 @@ mod tests {
     fn download_encrypted_dataset_failure_with_invalid_gateway() {
         let mut dataset = get_test_dataset();
         dataset.url = "/ipfs/INVALID_IPFS_DATASET_URL".to_string();
-        dataset.address = "0xinvalidgateway".to_string();
         let actual_content = dataset.download_encrypted_dataset(CHAIN_TASK_ID);
         let expected_content = Err(ReplicateStatusCause::PreComputeDatasetDownloadFailed(
-            "0xinvalidgateway".to_string(),
+            PLAIN_DATA_FILE.to_string(),
         ));
         assert_eq!(actual_content, expected_content);
     }
@@ -222,10 +211,9 @@ mod tests {
     fn download_encrypted_dataset_failure_with_invalid_dataset_checksum() {
         let mut dataset = get_test_dataset();
         dataset.checksum = "invalid_dataset_checksum".to_string();
-        dataset.address = "0xinvalidchecksum".to_string();
         let actual_content = dataset.download_encrypted_dataset(CHAIN_TASK_ID);
         let expected_content = Err(ReplicateStatusCause::PreComputeInvalidDatasetChecksum(
-            "0xinvalidchecksum".to_string(),
+            PLAIN_DATA_FILE.to_string(),
         ));
         assert_eq!(actual_content, expected_content);
     }
@@ -247,14 +235,13 @@ mod tests {
     fn decrypt_dataset_failure_with_bad_key() {
         let mut dataset = get_test_dataset();
         dataset.key = "bad_key".to_string();
-        dataset.address = "0xbadkey".to_string();
         let encrypted_data = dataset.download_encrypted_dataset(CHAIN_TASK_ID).unwrap();
         let actual_plain_data = dataset.decrypt_dataset(&encrypted_data);
 
         assert_eq!(
             actual_plain_data,
             Err(ReplicateStatusCause::PreComputeDatasetDecryptionFailed(
-                "0xbadkey".to_string()
+                PLAIN_DATA_FILE.to_string()
             ))
         );
     }

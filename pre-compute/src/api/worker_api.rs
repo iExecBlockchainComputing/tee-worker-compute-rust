@@ -154,12 +154,14 @@ mod tests {
                 r#"{"cause":"PRE_COMPUTE_WORKER_ADDRESS_MISSING","message":"Worker address related environment variable is missing"}"#,
             ),
             (
-                ReplicateStatusCause::PreComputeDatasetUrlMissing("0xDataset2".to_string()),
-                r#"{"cause":"PRE_COMPUTE_DATASET_URL_MISSING","message":"Dataset URL related environment variable is missing for dataset 0xDataset2"}"#,
+                ReplicateStatusCause::PreComputeDatasetUrlMissing("0xDatasetAdress1".to_string()),
+                r#"{"cause":"PRE_COMPUTE_DATASET_URL_MISSING","message":"Dataset URL related environment variable is missing for dataset 0xDatasetAdress1"}"#,
             ),
             (
-                ReplicateStatusCause::PreComputeInvalidDatasetChecksum("0xDataset1".to_string()),
-                r#"{"cause":"PRE_COMPUTE_INVALID_DATASET_CHECKSUM","message":"Invalid dataset checksum for dataset 0xDataset1"}"#,
+                ReplicateStatusCause::PreComputeInvalidDatasetChecksum(
+                    "0xDatasetAdress2".to_string(),
+                ),
+                r#"{"cause":"PRE_COMPUTE_INVALID_DATASET_CHECKSUM","message":"Invalid dataset checksum for dataset 0xDatasetAdress2"}"#,
             ),
         ];
 
@@ -172,12 +174,12 @@ mod tests {
     #[test]
     fn serialize_vec_of_causes_succeeds_when_multiple_causes() {
         let causes = vec![
-            ReplicateStatusCause::PreComputeDatasetUrlMissing("0xDatasetA".to_string()),
-            ReplicateStatusCause::PreComputeInvalidDatasetChecksum("0xDatasetB".to_string()),
+            ReplicateStatusCause::PreComputeDatasetUrlMissing("0xDatasetAdress".to_string()),
+            ReplicateStatusCause::PreComputeInvalidDatasetChecksum("0xDatasetAdress".to_string()),
         ];
 
         let serialized = to_string(&causes).expect("Failed to serialize");
-        let expected = r#"[{"cause":"PRE_COMPUTE_DATASET_URL_MISSING","message":"Dataset URL related environment variable is missing for dataset 0xDatasetA"},{"cause":"PRE_COMPUTE_INVALID_DATASET_CHECKSUM","message":"Invalid dataset checksum for dataset 0xDatasetB"}]"#;
+        let expected = r#"[{"cause":"PRE_COMPUTE_DATASET_URL_MISSING","message":"Dataset URL related environment variable is missing for dataset 0xDatasetAdress"},{"cause":"PRE_COMPUTE_INVALID_DATASET_CHECKSUM","message":"Invalid dataset checksum for dataset 0xDatasetAdress"}]"#;
         assert_eq!(serialized, expected);
     }
     // endregion

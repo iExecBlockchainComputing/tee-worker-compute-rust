@@ -2,7 +2,6 @@ use crate::compute::errors::ReplicateStatusCause;
 use std::env;
 
 pub enum TeeSessionEnvironmentVariable {
-    IexecDatasetAddress(usize),
     IexecBulkSliceSize,
     IexecDatasetChecksum(usize),
     IexecDatasetFilename(usize),
@@ -21,11 +20,6 @@ pub enum TeeSessionEnvironmentVariable {
 impl TeeSessionEnvironmentVariable {
     pub fn name(&self) -> String {
         match self {
-            Self::IexecDatasetAddress(0) => "IEXEC_DATASET_ADDRESS".to_string(),
-            Self::IexecDatasetAddress(index) => {
-                format!("IEXEC_DATASET_{index}_ADDRESS")
-            }
-
             Self::IexecBulkSliceSize => "IEXEC_BULK_SLICE_SIZE".to_string(),
 
             Self::IexecDatasetChecksum(0) => "IEXEC_DATASET_CHECKSUM".to_string(),

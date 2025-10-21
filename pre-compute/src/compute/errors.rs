@@ -64,11 +64,11 @@ mod tests {
     use super::*;
     use serde_json::to_string;
 
-    const DATASET_ADDRESS: &str = "0xDatasetAddress";
+    const DATASET_FILENAME: &str = "0xDatasetAddress";
 
     #[test]
-    fn serialize_produces_correct_json_when_error_has_dataset_index() {
-        let cause = ReplicateStatusCause::PreComputeDatasetUrlMissing(DATASET_ADDRESS.to_string());
+    fn serialize_produces_correct_json_when_error_has_dataset_filename() {
+        let cause = ReplicateStatusCause::PreComputeDatasetUrlMissing(DATASET_FILENAME.to_string());
         let serialized = to_string(&cause).unwrap();
         assert_eq!(
             serialized,
@@ -87,28 +87,26 @@ mod tests {
     }
 
     #[test]
-    fn serialize_produces_correct_json_when_multiple_dataset_errors_with_indices() {
+    fn serialize_produces_correct_json_when_multiple_dataset_errors_with_filenames() {
         let test_cases = vec![
             (
                 ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing(1),
                 r#"{"cause":"PRE_COMPUTE_AT_LEAST_ONE_INPUT_FILE_URL_MISSING","message":"input file URL 1 is missing"}"#,
             ),
             (
-                ReplicateStatusCause::PreComputeDatasetChecksumMissing(DATASET_ADDRESS.to_string()),
+                ReplicateStatusCause::PreComputeDatasetChecksumMissing(DATASET_FILENAME.to_string()),
                 r#"{"cause":"PRE_COMPUTE_DATASET_CHECKSUM_MISSING","message":"Dataset checksum related environment variable is missing for dataset 0xDatasetAddress"}"#,
             ),
             (
-                ReplicateStatusCause::PreComputeDatasetDecryptionFailed(
-                    DATASET_ADDRESS.to_string(),
-                ),
+                ReplicateStatusCause::PreComputeDatasetDecryptionFailed(DATASET_FILENAME.to_string()),
                 r#"{"cause":"PRE_COMPUTE_DATASET_DECRYPTION_FAILED","message":"Failed to decrypt dataset 0xDatasetAddress"}"#,
             ),
             (
-                ReplicateStatusCause::PreComputeDatasetDownloadFailed(DATASET_ADDRESS.to_string()),
+                ReplicateStatusCause::PreComputeDatasetDownloadFailed(DATASET_FILENAME.to_string()),
                 r#"{"cause":"PRE_COMPUTE_DATASET_DOWNLOAD_FAILED","message":"Failed to download encrypted dataset file for dataset 0xDatasetAddress"}"#,
             ),
             (
-                ReplicateStatusCause::PreComputeInvalidDatasetChecksum(DATASET_ADDRESS.to_string()),
+                ReplicateStatusCause::PreComputeInvalidDatasetChecksum(DATASET_FILENAME.to_string()),
                 r#"{"cause":"PRE_COMPUTE_INVALID_DATASET_CHECKSUM","message":"Invalid dataset checksum for dataset 0xDatasetAddress"}"#,
             ),
         ];
@@ -122,7 +120,7 @@ mod tests {
     #[test]
     fn serialize_produces_correct_json_when_vector_of_multiple_errors() {
         let causes = vec![
-            ReplicateStatusCause::PreComputeDatasetUrlMissing(DATASET_ADDRESS.to_string()),
+            ReplicateStatusCause::PreComputeDatasetUrlMissing(DATASET_FILENAME.to_string()),
             ReplicateStatusCause::PreComputeInvalidDatasetChecksum("0xAnotherDataset".to_string()),
         ];
 
