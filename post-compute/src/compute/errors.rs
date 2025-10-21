@@ -12,7 +12,7 @@ pub enum ReplicateStatusCause {
     PostComputeDropboxUploadFailed,
     #[error("Encryption stage failed")]
     PostComputeEncryptionFailed,
-    #[error("Encryption public key related environment variable is missing")]
+    #[error("Encryption public key not found in TEE session")]
     PostComputeEncryptionPublicKeyMissing,
     #[error("Unexpected error occurred")]
     PostComputeFailedUnknownIssue,
@@ -30,15 +30,15 @@ pub enum ReplicateStatusCause {
     PostComputeResultFileNotFound,
     #[error("Failed to send computed file")]
     PostComputeSendComputedFileFailed,
-    #[error("Storage token related environment variable is missing")]
+    #[error("Storage token not found in TEE session")]
     PostComputeStorageTokenMissing,
-    #[error("Task ID related environment variable is missing")]
+    #[error("Task ID not found in TEE session")]
     PostComputeTaskIdMissing,
-    #[error("Tee challenge private key related environment variable is missing")]
+    #[error("TEE challenge private key not found in TEE session")]
     PostComputeTeeChallengePrivateKeyMissing,
     #[error("Result file name too long")]
     PostComputeTooLongResultFileName,
-    #[error("Worker address related environment variable is missing")]
+    #[error("Worker address not found in TEE session")]
     PostComputeWorkerAddressMissing,
 }
 
@@ -88,7 +88,7 @@ mod tests {
             },
             {
                 "cause": "POST_COMPUTE_TASK_ID_MISSING",
-                "message": "Task ID related environment variable is missing"
+                "message": "Task ID not found in TEE session"
             }
         ]);
         assert_eq!(serialized, expected);

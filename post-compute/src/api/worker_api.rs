@@ -238,7 +238,7 @@ mod tests {
             ReplicateStatusCause::PostComputeWorkerAddressMissing,
         ];
         let serialized = to_string(&causes).expect("Failed to serialize");
-        let expected = r#"[{"cause":"POST_COMPUTE_INVALID_TEE_SIGNATURE","message":"Invalid TEE signature"},{"cause":"POST_COMPUTE_WORKER_ADDRESS_MISSING","message":"Worker address related environment variable is missing"}]"#;
+        let expected = r#"[{"cause":"POST_COMPUTE_INVALID_TEE_SIGNATURE","message":"Invalid TEE signature"},{"cause":"POST_COMPUTE_WORKER_ADDRESS_MISSING","message":"Worker address not found in TEE session"}]"#;
         assert_eq!(serialized, expected);
     }
 
