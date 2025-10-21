@@ -1,9 +1,10 @@
-use serde::{Deserialize, Serialize};
+use serde::{Serializer, ser::SerializeStruct};
+use strum_macros::EnumDiscriminants;
 use thiserror::Error;
 
-#[derive(Debug, PartialEq, Clone, Error, Serialize, Deserialize)]
-#[serde(rename_all(serialize = "SCREAMING_SNAKE_CASE"))]
-#[allow(clippy::enum_variant_names)]
+#[derive(Debug, PartialEq, Clone, Error, EnumDiscriminants)]
+#[strum_discriminants(derive(serde::Serialize))]
+#[strum_discriminants(serde(rename_all = "SCREAMING_SNAKE_CASE"))]
 pub enum ReplicateStatusCause {
     #[error("computed.json file missing")]
     PostComputeComputedFileNotFound,
@@ -11,7 +12,7 @@ pub enum ReplicateStatusCause {
     PostComputeDropboxUploadFailed,
     #[error("Encryption stage failed")]
     PostComputeEncryptionFailed,
-    #[error("Encryption public key related environment variable is missing")]
+    #[error("Encryption public key not found in TEE session")]
     PostComputeEncryptionPublicKeyMissing,
     #[error("Unexpected error occurred")]
     PostComputeFailedUnknownIssue,
@@ -29,14 +30,74 @@ pub enum ReplicateStatusCause {
     PostComputeResultFileNotFound,
     #[error("Failed to send computed file")]
     PostComputeSendComputedFileFailed,
-    #[error("Storage token related environment variable is missing")]
+    #[error("Storage token not found in TEE session")]
     PostComputeStorageTokenMissing,
-    #[error("Task ID related environment variable is missing")]
+    #[error("Task ID not found in TEE session")]
     PostComputeTaskIdMissing,
-    #[error("Tee challenge private key related environment variable is missing")]
+    #[error("TEE challenge private key not found in TEE session")]
     PostComputeTeeChallengePrivateKeyMissing,
     #[error("Result file name too long")]
     PostComputeTooLongResultFileName,
-    #[error("Worker address related environment variable is missing")]
+    #[error("Worker address not found in TEE session")]
     PostComputeWorkerAddressMissing,
+}
+
+impl serde::Serialize for ReplicateStatusCause {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("ReplicateStatusCause", 2)?;
+        state.serialize_field("cause", &ReplicateStatusCauseDiscriminants::from(self))?;
+        state.serialize_field("message", &self.to_string())?;
+        state.end()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::{json, to_value};
+
+    #[test]
+    fn error_variant_serialize_correctly() {
+        let expected = json!({
+            "cause": "POST_COMPUTE_TOO_LONG_RESULT_FILE_NAME",
+            "message": "Result file name too long"
+        });
+        let error_variant = ReplicateStatusCause::PostComputeTooLongResultFileName;
+        assert_eq!(to_value(&error_variant).unwrap(), expected);
+    }
+
+    #[test]
+    fn error_list_serializes_as_json_array() {
+        let errors = vec![
+            ReplicateStatusCause::PostComputeComputedFileNotFound,
+            ReplicateStatusCause::PostComputeInvalidTeeSignature,
+            ReplicateStatusCause::PostComputeTaskIdMissing,
+        ];
+        let serialized = to_value(&errors).unwrap();
+        let expected = json!([
+            {
+                "cause": "POST_COMPUTE_COMPUTED_FILE_NOT_FOUND",
+                "message": "computed.json file missing"
+            },
+            {
+                "cause": "POST_COMPUTE_INVALID_TEE_SIGNATURE",
+                "message": "Invalid TEE signature"
+            },
+            {
+                "cause": "POST_COMPUTE_TASK_ID_MISSING",
+                "message": "Task ID not found in TEE session"
+            }
+        ]);
+        assert_eq!(serialized, expected);
+    }
+
+    #[test]
+    fn empty_error_list_serializes_as_empty_json_array() {
+        let errors: Vec<ReplicateStatusCause> = vec![];
+        let serialized = to_value(&errors).unwrap();
+        assert_eq!(serialized, json!([]));
+    }
 }

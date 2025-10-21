@@ -1,4 +1,4 @@
-use crate::api::worker_api::{ExitMessage, WorkerApiClient};
+use crate::api::worker_api::WorkerApiClient;
 use crate::compute::{
     computed_file::{
         ComputedFile, build_result_digest_in_computed_file, read_computed_file, sign_computed_file,
@@ -31,11 +31,11 @@ pub enum ExitMode {
 pub trait PostComputeRunnerInterface {
     fn run_post_compute(&self, chain_task_id: &str) -> Result<(), ReplicateStatusCause>;
     fn get_challenge(&self, chain_task_id: &str) -> Result<String, ReplicateStatusCause>;
-    fn send_exit_cause(
+    fn send_exit_causes(
         &self,
         authorization: &str,
         chain_task_id: &str,
-        exit_message: &ExitMessage,
+        exit_causes: &[ReplicateStatusCause],
     ) -> Result<(), ReplicateStatusCause>;
     fn send_computed_file(&self, computed_file: &ComputedFile) -> Result<(), ReplicateStatusCause>;
 }
@@ -99,14 +99,14 @@ impl PostComputeRunnerInterface for DefaultPostComputeRunner {
         get_challenge(chain_task_id)
     }
 
-    fn send_exit_cause(
+    fn send_exit_causes(
         &self,
         authorization: &str,
         chain_task_id: &str,
-        exit_message: &ExitMessage,
+        exit_causes: &[ReplicateStatusCause],
     ) -> Result<(), ReplicateStatusCause> {
         self.worker_api_client
-            .send_exit_cause_for_post_compute_stage(authorization, chain_task_id, exit_message)
+            .send_exit_causes_for_post_compute_stage(authorization, chain_task_id, exit_causes)
     }
 
     fn send_computed_file(&self, computed_file: &ComputedFile) -> Result<(), ReplicateStatusCause> {
@@ -189,12 +189,12 @@ pub fn start_with_runner<R: PostComputeRunnerInterface>(runner: &R) -> ExitMode 
                 }
             };
 
-            let exit_message = ExitMessage::from(&exit_cause);
+            let exit_causes = vec![exit_cause.clone()];
 
-            match runner.send_exit_cause(&authorization, &chain_task_id, &exit_message) {
+            match runner.send_exit_causes(&authorization, &chain_task_id, &exit_causes) {
                 Ok(()) => ExitMode::ReportedFailure,
                 Err(_) => {
-                    error!("Failed to report exit cause [exitCause:{exit_cause}]");
+                    error!("Failed to report exit causes [exitCauses:{exit_causes:?}]");
                     ExitMode::UnreportedFailure
                 }
             }
@@ -273,7 +273,7 @@ mod tests {
             self
         }
 
-        fn with_send_exit_cause_failure(mut self) -> Self {
+        fn with_send_exit_causes_failure(mut self) -> Self {
             self.send_exit_cause_success = false;
             self
         }
@@ -298,11 +298,11 @@ mod tests {
             }
         }
 
-        fn send_exit_cause(
+        fn send_exit_causes(
             &self,
             _authorization: &str,
             _chain_task_id: &str,
-            _exit_message: &ExitMessage,
+            _exit_causes: &[ReplicateStatusCause],
         ) -> Result<(), ReplicateStatusCause> {
             if self.send_exit_cause_success {
                 Ok(())
@@ -423,7 +423,7 @@ mod tests {
     }
 
     #[test]
-    fn start_return_2_when_exit_cause_not_transmitted() {
+    fn start_return_2_when_exit_causes_not_transmitted() {
         with_vars(
             vec![(
                 TeeSessionEnvironmentVariable::IexecTaskId.name(),
@@ -434,7 +434,7 @@ mod tests {
                     .with_run_post_compute_failure(Some(
                         ReplicateStatusCause::PostComputeInvalidTeeSignature,
                     ))
-                    .with_send_exit_cause_failure();
+                    .with_send_exit_causes_failure();
 
                 let result = start_with_runner(&runner);
                 assert_eq!(

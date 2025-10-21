@@ -17,7 +17,7 @@ pub fn hex_string_to_byte_array(input: &str) -> Vec<u8> {
     }
 
     let mut data: Vec<u8> = vec![];
-    let start_idx = if len % 2 != 0 {
+    let start_idx = if !len.is_multiple_of(2) {
         let byte =
             u8::from_str_radix(&clean_input[0..1], 16).expect("Invalid hex digit in input string");
         data.push(byte);

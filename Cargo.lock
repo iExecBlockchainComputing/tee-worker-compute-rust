@@ -4166,6 +4166,8 @@ dependencies = [
  "serial_test",
  "sha256",
  "sha3",
+ "strum",
+ "strum_macros",
  "temp-env",
  "tempfile",
  "thiserror",
