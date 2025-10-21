@@ -60,21 +60,21 @@ impl WorkerApiClient {
         Self::new(&base_url)
     }
 
-    /// Sends an exit cause for a post-compute operation to the Worker API.
+    /// Sends exit causes for a post-compute operation to the Worker API.
     ///
-    /// This method reports the exit cause of a post-compute operation to the Worker API,
+    /// This method reports the exit causes of a post-compute operation to the Worker API,
     /// which can be used for tracking and debugging purposes.
     ///
     /// # Arguments
     ///
     /// * `authorization` - The authorization token to use for the API request
-    /// * `chain_task_id` - The chain task ID for which to report the exit cause
-    /// * `exit_cause` - The exit cause to report
+    /// * `chain_task_id` - The chain task ID for which to report the exit causes
+    /// * `exit_causes` - The exit causes to report
     ///
     /// # Returns
     ///
-    /// * `Ok(())` - If the exit cause was successfully reported
-    /// * `Err(ReplicateStatusCause)` - If the exit cause could not be reported due to an HTTP error
+    /// * `Ok(())` - If the exit causes were successfully reported
+    /// * `Err(ReplicateStatusCause)` - If the exit causes could not be reported due to an HTTP error
     ///
     /// # Errors
     ///
@@ -92,22 +92,22 @@ impl WorkerApiClient {
     /// let client = WorkerApiClient::new("http://worker:13100");
     /// let exit_causes = vec![ReplicateStatusCause::PostComputeInvalidTeeSignature];
     ///
-    /// match client.send_exit_cause_for_post_compute_stage(
+    /// match client.send_exit_causes_for_post_compute_stage(
     ///     "authorization_token",
     ///     "0x123456789abcdef",
     ///     &exit_causes,
     /// ) {
-    ///     Ok(()) => println!("Exit cause reported successfully"),
-    ///     Err(error) => eprintln!("Failed to report exit cause: {}", error),
+    ///     Ok(()) => println!("Exit causes reported successfully"),
+    ///     Err(error) => eprintln!("Failed to report exit causes: {}", error),
     /// }
     /// ```
-    pub fn send_exit_cause_for_post_compute_stage(
+    pub fn send_exit_causes_for_post_compute_stage(
         &self,
         authorization: &str,
         chain_task_id: &str,
         exit_causes: &[ReplicateStatusCause],
     ) -> Result<(), ReplicateStatusCause> {
-        let url = format!("{}/compute/post/{chain_task_id}/exit", self.base_url);
+        let url = format!("{}/compute/post/{chain_task_id}/exit-causes", self.base_url);
         match self
             .client
             .post(&url)
@@ -122,13 +122,13 @@ impl WorkerApiClient {
                     let status = response.status();
                     let body = response.text().unwrap_or_default();
                     error!(
-                        "Failed to send exit cause to worker: [status:{status:?}, body:{body:#?}]"
+                        "Failed to send exit causes to worker: [status:{status:?}, body:{body:#?}]"
                     );
                     Err(ReplicateStatusCause::PostComputeFailedUnknownIssue)
                 }
             }
             Err(e) => {
-                error!("An error occured while sending exit cause to worker: {e}");
+                error!("An error occured while sending exit causes to worker: {e}");
                 Err(ReplicateStatusCause::PostComputeFailedUnknownIssue)
             }
         }
@@ -232,7 +232,7 @@ mod tests {
 
     // region serialize List of ReplicateStatusCause
     #[test]
-    fn should_serialize_list_of_exit_causes() {
+    fn replicate_status_cause_serializes_as_json_array_when_multiple_causes() {
         let causes = vec![
             ReplicateStatusCause::PostComputeInvalidTeeSignature,
             ReplicateStatusCause::PostComputeWorkerAddressMissing,
@@ -243,7 +243,7 @@ mod tests {
     }
 
     #[test]
-    fn should_serialize_single_exit_cause() {
+    fn replicate_status_cause_serializes_as_json_array_when_single_cause() {
         let causes = vec![ReplicateStatusCause::PostComputeFailedUnknownIssue];
         let serialized = to_string(&causes).expect("Failed to serialize");
         let expected = r#"[{"cause":"POST_COMPUTE_FAILED_UNKNOWN_ISSUE","message":"Unexpected error occurred"}]"#;
@@ -253,7 +253,7 @@ mod tests {
 
     // region get_worker_api_client
     #[test]
-    fn should_get_worker_api_client_with_env_var() {
+    fn from_env_creates_client_with_custom_url_when_env_var_set() {
         with_vars(
             vec![(WorkerHostEnvVar.name(), Some("custom-worker-host:9999"))],
             || {
@@ -264,7 +264,7 @@ mod tests {
     }
 
     #[test]
-    fn should_get_worker_api_client_without_env_var() {
+    fn from_env_creates_client_with_default_url_when_env_var_missing() {
         with_vars(vec![(WorkerHostEnvVar.name(), None::<&str>)], || {
             let client = WorkerApiClient::from_env();
             assert_eq!(client.base_url, format!("http://{DEFAULT_WORKER_HOST}"));
@@ -272,16 +272,16 @@ mod tests {
     }
     // endregion
 
-    // region send_exit_cause_for_post_compute_stage()
+    // region send_exit_causes_for_post_compute_stage()
     #[tokio::test]
-    async fn should_send_exit_cause() {
+    async fn send_exit_causes_for_post_compute_stage_succeeds_when_server_responds_ok() {
         let mock_server = MockServer::start().await;
         let server_url = mock_server.uri();
 
         let expected_body = json!([ReplicateStatusCause::PostComputeInvalidTeeSignature,]);
 
         Mock::given(method("POST"))
-            .and(path(format!("/compute/post/{CHAIN_TASK_ID}/exit")))
+            .and(path(format!("/compute/post/{CHAIN_TASK_ID}/exit-causes")))
             .and(header("Authorization", CHALLENGE))
             .and(body_json(&expected_body))
             .respond_with(ResponseTemplate::new(200))
@@ -292,7 +292,7 @@ mod tests {
         let result = tokio::task::spawn_blocking(move || {
             let exit_causes = vec![ReplicateStatusCause::PostComputeInvalidTeeSignature];
             let worker_api_client = WorkerApiClient::new(&server_url);
-            worker_api_client.send_exit_cause_for_post_compute_stage(
+            worker_api_client.send_exit_causes_for_post_compute_stage(
                 CHALLENGE,
                 CHAIN_TASK_ID,
                 &exit_causes,
@@ -306,7 +306,7 @@ mod tests {
 
     #[tokio::test]
     #[serial]
-    async fn should_not_send_exit_cause() {
+    async fn send_exit_causes_for_post_compute_stage_fails_when_server_returns_404() {
         {
             let mut logger = TEST_LOGGER.lock().unwrap();
             while logger.pop().is_some() {}
@@ -315,7 +315,7 @@ mod tests {
         let server_url = mock_server.uri();
 
         Mock::given(method("POST"))
-            .and(path(format!("/compute/post/{CHAIN_TASK_ID}/exit")))
+            .and(path(format!("/compute/post/{CHAIN_TASK_ID}/exit-causes")))
             .respond_with(ResponseTemplate::new(404))
             .expect(1)
             .mount(&mock_server)
@@ -324,7 +324,7 @@ mod tests {
         let result = tokio::task::spawn_blocking(move || {
             let exit_causes = vec![ReplicateStatusCause::PostComputeFailedUnknownIssue];
             let worker_api_client = WorkerApiClient::new(&server_url);
-            worker_api_client.send_exit_cause_for_post_compute_stage(
+            worker_api_client.send_exit_causes_for_post_compute_stage(
                 CHALLENGE,
                 CHAIN_TASK_ID,
                 &exit_causes,
@@ -356,7 +356,7 @@ mod tests {
 
     // region send_computed_file_to_host()
     #[tokio::test]
-    async fn should_send_computed_file_successfully() {
+    async fn send_computed_file_to_host_succeeds_when_server_responds_ok() {
         let mock_server = MockServer::start().await;
         let server_uri = mock_server.uri();
 
@@ -391,7 +391,7 @@ mod tests {
 
     #[tokio::test]
     #[serial]
-    async fn should_fail_send_computed_file_on_server_error() {
+    async fn send_computed_file_to_host_fails_when_server_returns_500() {
         {
             let mut logger = TEST_LOGGER.lock().unwrap();
             while logger.pop().is_some() {}
@@ -445,7 +445,7 @@ mod tests {
 
     #[tokio::test]
     #[serial]
-    async fn should_handle_invalid_chain_task_id_in_url() {
+    async fn send_computed_file_to_host_fails_when_chain_task_id_invalid() {
         {
             let mut logger = TEST_LOGGER.lock().unwrap();
             while logger.pop().is_some() {}
@@ -486,7 +486,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_send_computed_file_with_minimal_data() {
+    async fn send_computed_file_to_host_succeeds_when_minimal_data_provided() {
         let mock_server = MockServer::start().await;
         let server_uri = mock_server.uri();
 

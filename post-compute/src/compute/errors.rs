@@ -62,7 +62,7 @@ mod tests {
     #[test]
     fn error_variant_serialize_correctly() {
         let expected = json!({
-            "cause": "POST_COMPUTE_TooLongResultFileName",
+            "cause": "POST_COMPUTE_TOO_LONG_RESULT_FILE_NAME",
             "message": "Result file name too long"
         });
         let error_variant = ReplicateStatusCause::PostComputeTooLongResultFileName;
