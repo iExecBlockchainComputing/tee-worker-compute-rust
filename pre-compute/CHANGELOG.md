@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/iExecBlockchainComputing/tee-worker-compute-rust/compare/tee-worker-pre-compute-v0.3.0...tee-worker-pre-compute-v0.4.0) (2025-10-21)
+
+
+### Features
+
+* update ReplicateStatusCause serialization and worker_api to support new WorkflowError format ([#21](https://github.com/iExecBlockchainComputing/tee-worker-compute-rust/issues/21)) ([7491cf4](https://github.com/iExecBlockchainComputing/tee-worker-compute-rust/commit/7491cf4f4754fbe511c055ccd91cfde64a82698e))
+
 ## [0.3.0](https://github.com/iExecBlockchainComputing/tee-worker-compute-rust/compare/tee-worker-pre-compute-v0.2.0...tee-worker-pre-compute-v0.3.0) (2025-10-09)
 
 
