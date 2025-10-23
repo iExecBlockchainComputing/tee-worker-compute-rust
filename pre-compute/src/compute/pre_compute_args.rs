@@ -85,12 +85,13 @@ impl PreComputeArgs {
 
         let iexec_bulk_slice_size =
             std::env::var(TeeSessionEnvironmentVariable::IexecBulkSliceSize.name())
-                .ok()
-                .and_then(|s| s.parse::<usize>().ok())
-                .unwrap_or_else(|| {
-                    exit_causes.push(ReplicateStatusCause::PreComputeFailedUnknownIssue);
-                    0
-                }); // TODO: replace with a more specific error
+                .map(|s| {
+                    s.parse::<usize>().unwrap_or_else(|_| {
+                        exit_causes.push(ReplicateStatusCause::PreComputeFailedUnknownIssue);
+                        0
+                    })
+                })
+                .unwrap_or(0); // TODO: replace with a more specific error
 
         let mut datasets = Vec::with_capacity(iexec_bulk_slice_size + 1);
 
