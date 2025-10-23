@@ -613,20 +613,28 @@ mod tests {
         let mut env_vars = setup_basic_env_vars();
         env_vars.extend(setup_dataset_env_vars());
         env_vars.extend(setup_input_files_env_vars(2));
-        
+
         // Remove dataset URL and an input file URL
         env_vars.remove(&IexecDatasetUrl(0).name());
         env_vars.remove(&IexecInputFileUrlPrefix(1).name());
 
         temp_env::with_vars(to_temp_env_vars(env_vars), || {
             let result = PreComputeArgs::read_args();
-            
+
             // Should collect both errors (dataset stops at URL, input file error also collected)
             assert_eq!(result.1.len(), 2);
-            assert!(result.1.contains(&ReplicateStatusCause::PreComputeDatasetUrlMissing(
-                DATASET_FILENAME.to_string()
-            )));
-            assert!(result.1.contains(&ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing(1)));
+            assert!(
+                result
+                    .1
+                    .contains(&ReplicateStatusCause::PreComputeDatasetUrlMissing(
+                        DATASET_FILENAME.to_string()
+                    ))
+            );
+            assert!(
+                result
+                    .1
+                    .contains(&ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing(1))
+            );
         });
     }
 
@@ -636,7 +644,7 @@ mod tests {
         env_vars.insert(IsDatasetRequired.name(), "false".to_string());
         env_vars.extend(setup_input_files_env_vars(0));
         env_vars.extend(setup_bulk_dataset_env_vars(3));
-        
+
         // Remove various fields from different bulk datasets
         env_vars.remove(&IexecDatasetUrl(1).name());
         env_vars.remove(&IexecDatasetChecksum(2).name());
@@ -644,19 +652,31 @@ mod tests {
 
         temp_env::with_vars(to_temp_env_vars(env_vars), || {
             let result = PreComputeArgs::read_args();
-            
+
             // Should collect all 3 errors
             assert_eq!(result.1.len(), 3);
-            assert!(result.1.contains(&ReplicateStatusCause::PreComputeDatasetUrlMissing(
-                "bulk-dataset-1.txt".to_string()
-            )));
-            assert!(result.1.contains(&ReplicateStatusCause::PreComputeDatasetChecksumMissing(
-                "bulk-dataset-2.txt".to_string()
-            )));
-            assert!(result.1.contains(&ReplicateStatusCause::PreComputeDatasetKeyMissing(
-                "bulk-dataset-3.txt".to_string()
-            )));
-            
+            assert!(
+                result
+                    .1
+                    .contains(&ReplicateStatusCause::PreComputeDatasetUrlMissing(
+                        "bulk-dataset-1.txt".to_string()
+                    ))
+            );
+            assert!(
+                result
+                    .1
+                    .contains(&ReplicateStatusCause::PreComputeDatasetChecksumMissing(
+                        "bulk-dataset-2.txt".to_string()
+                    ))
+            );
+            assert!(
+                result
+                    .1
+                    .contains(&ReplicateStatusCause::PreComputeDatasetKeyMissing(
+                        "bulk-dataset-3.txt".to_string()
+                    ))
+            );
+
             // No datasets should be added since they all had errors
             assert_eq!(result.0.datasets.len(), 0);
         });
@@ -668,20 +688,20 @@ mod tests {
         env_vars.insert(IsDatasetRequired.name(), "false".to_string());
         env_vars.extend(setup_input_files_env_vars(0));
         env_vars.extend(setup_bulk_dataset_env_vars(3));
-        
+
         // Remove only the second dataset's URL
         env_vars.remove(&IexecDatasetUrl(2).name());
 
         temp_env::with_vars(to_temp_env_vars(env_vars), || {
             let result = PreComputeArgs::read_args();
-            
+
             // Should have one error for the missing URL
             assert_eq!(result.1.len(), 1);
             assert_eq!(
                 result.1[0],
                 ReplicateStatusCause::PreComputeDatasetUrlMissing("bulk-dataset-2.txt".to_string())
             );
-            
+
             // Should successfully load the other two datasets
             assert_eq!(result.0.datasets.len(), 2);
             assert_eq!(result.0.datasets[0].url, "https://bulk-dataset-1.bin");
@@ -694,19 +714,27 @@ mod tests {
         let mut env_vars = setup_basic_env_vars();
         env_vars.insert(IsDatasetRequired.name(), "false".to_string());
         env_vars.extend(setup_input_files_env_vars(5));
-        
+
         // Remove multiple input file URLs
         env_vars.remove(&IexecInputFileUrlPrefix(2).name());
         env_vars.remove(&IexecInputFileUrlPrefix(4).name());
 
         temp_env::with_vars(to_temp_env_vars(env_vars), || {
             let result = PreComputeArgs::read_args();
-            
+
             // Should collect errors for missing URLs
             assert_eq!(result.1.len(), 2);
-            assert!(result.1.contains(&ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing(2)));
-            assert!(result.1.contains(&ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing(4)));
-            
+            assert!(
+                result
+                    .1
+                    .contains(&ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing(2))
+            );
+            assert!(
+                result
+                    .1
+                    .contains(&ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing(4))
+            );
+
             // Should successfully load the other three input files
             assert_eq!(result.0.input_files.len(), 3);
             assert_eq!(result.0.input_files[0], "https://input-1.txt");
@@ -721,7 +749,7 @@ mod tests {
         env_vars.extend(setup_dataset_env_vars());
         env_vars.extend(setup_input_files_env_vars(3));
         env_vars.extend(setup_bulk_dataset_env_vars(2));
-        
+
         // Create errors across different categories
         env_vars.insert(IsDatasetRequired.name(), "invalid-bool".to_string());
         // Since invalid bool defaults to false, dataset at index 0 won't be read
@@ -731,14 +759,26 @@ mod tests {
 
         temp_env::with_vars(to_temp_env_vars(env_vars), || {
             let result = PreComputeArgs::read_args();
-            
+
             // Should collect: bool parse error, bulk dataset checksum error, input file error
             assert_eq!(result.1.len(), 3);
-            assert!(result.1.contains(&ReplicateStatusCause::PreComputeIsDatasetRequiredMissing));
-            assert!(result.1.contains(&ReplicateStatusCause::PreComputeDatasetChecksumMissing(
-                "bulk-dataset-1.txt".to_string()
-            )));
-            assert!(result.1.contains(&ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing(2)));
+            assert!(
+                result
+                    .1
+                    .contains(&ReplicateStatusCause::PreComputeIsDatasetRequiredMissing)
+            );
+            assert!(
+                result
+                    .1
+                    .contains(&ReplicateStatusCause::PreComputeDatasetChecksumMissing(
+                        "bulk-dataset-1.txt".to_string()
+                    ))
+            );
+            assert!(
+                result
+                    .1
+                    .contains(&ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing(2))
+            );
         });
     }
 
@@ -748,17 +788,17 @@ mod tests {
         env_vars.extend(setup_dataset_env_vars());
         env_vars.extend(setup_input_files_env_vars(0));
         env_vars.extend(setup_bulk_dataset_env_vars(4));
-        
+
         // Break datasets at indices 1 and 3
         env_vars.remove(&IexecDatasetUrl(1).name());
         env_vars.remove(&IexecDatasetKey(3).name());
 
         temp_env::with_vars(to_temp_env_vars(env_vars), || {
             let result = PreComputeArgs::read_args();
-            
+
             // Should have 2 errors
             assert_eq!(result.1.len(), 2);
-            
+
             // Should successfully load datasets at indices 0, 2, and 4
             assert_eq!(result.0.datasets.len(), 3);
             assert_eq!(result.0.datasets[0].url, DATASET_URL);
@@ -776,11 +816,14 @@ mod tests {
 
         temp_env::with_vars(to_temp_env_vars(env_vars), || {
             let result = PreComputeArgs::read_args();
-            
+
             // Should collect the parse error
             assert_eq!(result.1.len(), 1);
-            assert_eq!(result.1[0], ReplicateStatusCause::PreComputeFailedUnknownIssue);
-            
+            assert_eq!(
+                result.1[0],
+                ReplicateStatusCause::PreComputeFailedUnknownIssue
+            );
+
             // Should still process input files successfully
             assert_eq!(result.0.input_files.len(), 2);
             assert_eq!(result.0.iexec_bulk_slice_size, 0);
@@ -792,21 +835,21 @@ mod tests {
         let mut env_vars = setup_basic_env_vars();
         env_vars.insert(IsDatasetRequired.name(), "false".to_string());
         env_vars.extend(setup_input_files_env_vars(0));
-        
+
         // Set up only one bulk dataset but with missing filename (first field checked)
         env_vars.insert(IexecBulkSliceSize.name(), "1".to_string());
         // Intentionally not setting filename - this will cause early exit from loop
 
         temp_env::with_vars(to_temp_env_vars(env_vars), || {
             let result = PreComputeArgs::read_args();
-            
+
             // Should collect error for missing filename (loop exits early, doesn't check other fields)
             assert_eq!(result.1.len(), 1);
             assert_eq!(
                 result.1[0],
                 ReplicateStatusCause::PreComputeDatasetFilenameMissing("dataset_1".to_string())
             );
-            
+
             // No dataset should be added
             assert_eq!(result.0.datasets.len(), 0);
         });
@@ -817,22 +860,27 @@ mod tests {
         let mut env_vars = setup_basic_env_vars();
         env_vars.insert(IsDatasetRequired.name(), "false".to_string());
         env_vars.extend(setup_input_files_env_vars(0));
-        
+
         // Set up bulk dataset with filename but missing URL (second field checked)
         env_vars.insert(IexecBulkSliceSize.name(), "1".to_string());
-        env_vars.insert(IexecDatasetFilename(1).name(), "incomplete-dataset.txt".to_string());
+        env_vars.insert(
+            IexecDatasetFilename(1).name(),
+            "incomplete-dataset.txt".to_string(),
+        );
         // Missing URL, checksum, and key - but should only report URL error
 
         temp_env::with_vars(to_temp_env_vars(env_vars), || {
             let result = PreComputeArgs::read_args();
-            
+
             // Should only collect error for the first missing field (URL)
             assert_eq!(result.1.len(), 1);
             assert_eq!(
                 result.1[0],
-                ReplicateStatusCause::PreComputeDatasetUrlMissing("incomplete-dataset.txt".to_string())
+                ReplicateStatusCause::PreComputeDatasetUrlMissing(
+                    "incomplete-dataset.txt".to_string()
+                )
             );
-            
+
             // No dataset should be added
             assert_eq!(result.0.datasets.len(), 0);
         });
@@ -847,13 +895,25 @@ mod tests {
 
         temp_env::with_vars(to_temp_env_vars(env_vars), || {
             let result = PreComputeArgs::read_args();
-            
+
             // Should collect errors for all missing input files
             assert_eq!(result.1.len(), 3);
-            assert!(result.1.contains(&ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing(1)));
-            assert!(result.1.contains(&ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing(2)));
-            assert!(result.1.contains(&ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing(3)));
-            
+            assert!(
+                result
+                    .1
+                    .contains(&ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing(1))
+            );
+            assert!(
+                result
+                    .1
+                    .contains(&ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing(2))
+            );
+            assert!(
+                result
+                    .1
+                    .contains(&ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing(3))
+            );
+
             // Input files should be empty
             assert_eq!(result.0.input_files.len(), 0);
         });
