@@ -9,9 +9,9 @@ use std::path::{Path, PathBuf};
 
 #[cfg_attr(test, automock)]
 pub trait PreComputeAppTrait {
-    fn run(&mut self) -> Result<(), ReplicateStatusCause>;
+    fn run(&mut self) -> Result<(), Vec<ReplicateStatusCause>>;
     fn check_output_folder(&self) -> Result<(), ReplicateStatusCause>;
-    fn download_input_files(&self) -> Result<(), ReplicateStatusCause>;
+    fn download_input_files(&self) -> Result<(), Vec<ReplicateStatusCause>>;
     fn save_plain_dataset_file(
         &self,
         plain_content: &[u8],
@@ -55,17 +55,33 @@ impl PreComputeAppTrait for PreComputeApp {
     /// let mut app = PreComputeApp::new("task_id".to_string());
     /// app.run();
     /// ```
-    fn run(&mut self) -> Result<(), ReplicateStatusCause> {
-        // TODO: Collect all errors instead of propagating immediately, and return the list of errors
-        self.pre_compute_args = PreComputeArgs::read_args()?;
-        self.check_output_folder()?;
-        for dataset in self.pre_compute_args.datasets.iter() {
-            let encrypted_content = dataset.download_encrypted_dataset(&self.chain_task_id)?;
-            let plain_content = dataset.decrypt_dataset(&encrypted_content)?;
-            self.save_plain_dataset_file(&plain_content, &dataset.filename)?;
+    fn run(&mut self) -> Result<(), Vec<ReplicateStatusCause>> {
+        let (args, mut exit_causes) = PreComputeArgs::read_args();
+        self.pre_compute_args = args;
+
+        if let Err(exit_cause) = self.check_output_folder() {
+            return Err(vec![exit_cause]);
         }
-        self.download_input_files()?;
-        Ok(())
+
+        for dataset in self.pre_compute_args.datasets.iter() {
+            if let Err(exit_cause) = dataset
+                .download_encrypted_dataset(&self.chain_task_id)
+                .and_then(|encrypted_content| dataset.decrypt_dataset(&encrypted_content))
+                .and_then(|plain_content| {
+                    self.save_plain_dataset_file(&plain_content, &dataset.filename)
+                })
+            {
+                exit_causes.push(exit_cause);
+            };
+        }
+        if let Err(exit_cause) = self.download_input_files() {
+            exit_causes.extend(exit_cause);
+        };
+        if !exit_causes.is_empty() {
+            Err(exit_causes)
+        } else {
+            Ok(())
+        }
     }
 
     /// Checks whether the output folder specified in `pre_compute_args` exists.
@@ -105,19 +121,27 @@ impl PreComputeAppTrait for PreComputeApp {
     /// This function panics if:
     /// - `pre_compute_args` is `None`.
     /// - `chain_task_id` is `None`.
-    fn download_input_files(&self) -> Result<(), ReplicateStatusCause> {
+    fn download_input_files(&self) -> Result<(), Vec<ReplicateStatusCause>> {
+        let mut exit_causes: Vec<ReplicateStatusCause> = vec![];
         let args = &self.pre_compute_args;
         let chain_task_id: &str = &self.chain_task_id;
 
-        for url in &args.input_files {
+        for (index, url) in args.input_files.iter().enumerate() {
             info!("Downloading input file [chainTaskId:{chain_task_id}, url:{url}]");
 
             let filename = sha256(url.to_string());
             if download_file(url, &args.output_dir, &filename).is_none() {
-                return Err(ReplicateStatusCause::PreComputeInputFileDownloadFailed);
+                exit_causes.push(ReplicateStatusCause::PreComputeInputFileDownloadFailed(
+                    index,
+                ));
             }
         }
-        Ok(())
+
+        if !exit_causes.is_empty() {
+            Err(exit_causes)
+        } else {
+            Ok(())
+        }
     }
 
     /// Saves the decrypted (plain) dataset to disk in the configured output directory.
@@ -293,12 +317,12 @@ mod tests {
         let result = app.download_input_files();
         assert_eq!(
             result.unwrap_err(),
-            ReplicateStatusCause::PreComputeInputFileDownloadFailed
+            vec![ReplicateStatusCause::PreComputeInputFileDownloadFailed(0)]
         );
     }
 
     #[test]
-    fn test_partial_failure_stops_on_first_error() {
+    fn test_partial_failure_dont_stops_on_first_error() {
         let (_container, json_url, xml_url) = start_container();
 
         let temp_dir = TempDir::new().unwrap();
@@ -307,7 +331,7 @@ mod tests {
             vec![
                 &json_url,                                           // This should succeed
                 "https://invalid-url-that-should-fail.com/file.txt", // This should fail
-                &xml_url,                                            // This shouldn't be reached
+                &xml_url,                                            // This should succeed
             ],
             temp_dir.path().to_str().unwrap(),
         );
@@ -315,16 +339,16 @@ mod tests {
         let result = app.download_input_files();
         assert_eq!(
             result.unwrap_err(),
-            ReplicateStatusCause::PreComputeInputFileDownloadFailed
+            vec![ReplicateStatusCause::PreComputeInputFileDownloadFailed(1)]
         );
 
         // First file should be downloaded with SHA256 filename
         let json_hash = sha256(json_url);
         assert!(temp_dir.path().join(json_hash).exists());
 
-        // Third file should NOT be downloaded (stopped on second failure)
+        // Third file should be downloaded (not stopped on second failure)
         let xml_hash = sha256(xml_url);
-        assert!(!temp_dir.path().join(xml_hash).exists());
+        assert!(temp_dir.path().join(xml_hash).exists());
     }
     // endregion
 
