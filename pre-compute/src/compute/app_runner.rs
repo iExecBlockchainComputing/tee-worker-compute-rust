@@ -42,26 +42,24 @@ pub fn start_with_app<A: PreComputeAppTrait>(
     pre_compute_app: &mut A,
     chain_task_id: &str,
 ) -> ExitMode {
-    let exit_cause = match pre_compute_app.run() {
+    let exit_causes = match pre_compute_app.run() {
         Ok(_) => {
             info!("TEE pre-compute completed");
             return ExitMode::Success;
         }
-        Err(exit_cause) => {
-            error!("TEE pre-compute failed with known exit cause [{exit_cause:?}]");
-            exit_cause
+        Err(exit_causes) => {
+            error!("TEE pre-compute failed with known exit cause [{exit_causes:?}]");
+            exit_causes
         }
     };
 
     let authorization = match get_challenge(chain_task_id) {
         Ok(auth) => auth,
         Err(_) => {
-            error!("Failed to sign exitCause message [{exit_cause:?}]");
+            error!("Failed to sign exitCause message [{exit_causes:?}]");
             return ExitMode::UnreportedFailure;
         }
     };
-
-    let exit_causes = vec![exit_cause.clone()];
 
     match WorkerApiClient::from_env().send_exit_causes_for_pre_compute_stage(
         &authorization,
@@ -70,7 +68,7 @@ pub fn start_with_app<A: PreComputeAppTrait>(
     ) {
         Ok(_) => ExitMode::ReportedFailure,
         Err(_) => {
-            error!("Failed to report exitCause [{exit_cause:?}]");
+            error!("Failed to report exitCause [{exit_causes:?}]");
             ExitMode::UnreportedFailure
         }
     }
@@ -150,7 +148,7 @@ mod pre_compute_start_with_app_tests {
 
         let mut mock = MockPreComputeAppTrait::new();
         mock.expect_run()
-            .returning(|| Err(ReplicateStatusCause::PreComputeWorkerAddressMissing));
+            .returning(|| Err(vec![ReplicateStatusCause::PreComputeWorkerAddressMissing]));
 
         temp_env::with_vars(env_vars_to_set, || {
             temp_env::with_vars_unset(env_vars_to_unset, || {
@@ -172,8 +170,11 @@ mod pre_compute_start_with_app_tests {
         let env_vars_to_unset = vec![ENV_SIGN_TEE_CHALLENGE_PRIVATE_KEY];
 
         let mut mock = MockPreComputeAppTrait::new();
-        mock.expect_run()
-            .returning(|| Err(ReplicateStatusCause::PreComputeTeeChallengePrivateKeyMissing));
+        mock.expect_run().returning(|| {
+            Err(vec![
+                ReplicateStatusCause::PreComputeTeeChallengePrivateKeyMissing,
+            ])
+        });
 
         temp_env::with_vars(env_vars_to_set, || {
             temp_env::with_vars_unset(env_vars_to_unset, || {
@@ -199,8 +200,11 @@ mod pre_compute_start_with_app_tests {
         let mock_server_addr_string = mock_server.address().to_string();
 
         let mut mock = MockPreComputeAppTrait::new();
-        mock.expect_run()
-            .returning(|| Err(ReplicateStatusCause::PreComputeTeeChallengePrivateKeyMissing));
+        mock.expect_run().returning(|| {
+            Err(vec![
+                ReplicateStatusCause::PreComputeTeeChallengePrivateKeyMissing,
+            ])
+        });
 
         let result_code = tokio::task::spawn_blocking(move || {
             let env_vars = vec![
@@ -248,7 +252,7 @@ mod pre_compute_start_with_app_tests {
         let mut mock = MockPreComputeAppTrait::new();
         mock.expect_run()
             .times(1)
-            .returning(|| Err(ReplicateStatusCause::PreComputeOutputFolderNotFound));
+            .returning(|| Err(vec![ReplicateStatusCause::PreComputeOutputFolderNotFound]));
 
         // Move the blocking operations into spawn_blocking
         let result_code = tokio::task::spawn_blocking(move || {

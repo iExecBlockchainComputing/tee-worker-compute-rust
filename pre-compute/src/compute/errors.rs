@@ -27,8 +27,8 @@ pub enum ReplicateStatusCause {
     PreComputeInvalidTeeSignature,
     #[error("IS_DATASET_REQUIRED environment variable is missing")]
     PreComputeIsDatasetRequiredMissing,
-    #[error("Input files download failed")]
-    PreComputeInputFileDownloadFailed,
+    #[error("Input file download failed for input {0}")]
+    PreComputeInputFileDownloadFailed(usize),
     #[error("Input files number related environment variable is missing")]
     PreComputeInputFilesNumberMissing,
     #[error("Invalid dataset checksum for dataset {0}")]

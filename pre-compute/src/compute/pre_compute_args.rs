@@ -58,78 +58,125 @@ impl PreComputeArgs {
     /// // Typically called with task ID from execution context
     /// let args = PreComputeArgs::read_args();
     /// ```
-    pub fn read_args() -> Result<Self, ReplicateStatusCause> {
-        let output_dir = get_env_var_or_error(
+    pub fn read_args() -> (PreComputeArgs, Vec<ReplicateStatusCause>) {
+        let mut exit_causes: Vec<ReplicateStatusCause> = vec![];
+
+        let output_dir = match get_env_var_or_error(
             TeeSessionEnvironmentVariable::IexecPreComputeOut,
             ReplicateStatusCause::PreComputeOutputPathMissing,
-        )?;
+        ) {
+            Ok(output_dir) => output_dir,
+            Err(exit_cause) => return (PreComputeArgs::default(), vec![exit_cause]),
+        };
 
-        let is_dataset_required_str = get_env_var_or_error(
+        let is_dataset_required = get_env_var_or_error(
             TeeSessionEnvironmentVariable::IsDatasetRequired,
             ReplicateStatusCause::PreComputeIsDatasetRequiredMissing,
-        )?;
-        let is_dataset_required = is_dataset_required_str
-            .to_lowercase()
-            .parse::<bool>()
-            .map_err(|_| ReplicateStatusCause::PreComputeIsDatasetRequiredMissing)?;
+        )
+        .and_then(|s| {
+            s.to_lowercase()
+                .parse::<bool>()
+                .map_err(|_| ReplicateStatusCause::PreComputeIsDatasetRequiredMissing)
+        })
+        .unwrap_or_else(|e| {
+            exit_causes.push(e);
+            false
+        });
 
-        // Read iexec bulk slice size (defaults to 0 if not present for backward compatibility)
-        let iexec_bulk_slice_size_str =
+        let iexec_bulk_slice_size =
             std::env::var(TeeSessionEnvironmentVariable::IexecBulkSliceSize.name())
-                .unwrap_or("0".to_string());
-        let iexec_bulk_slice_size = iexec_bulk_slice_size_str
-            .parse::<usize>()
-            .map_err(|_| ReplicateStatusCause::PreComputeFailedUnknownIssue)?; // TODO: replace with a more specific error
+                .ok()
+                .and_then(|s| s.parse::<usize>().ok())
+                .unwrap_or_else(|| {
+                    exit_causes.push(ReplicateStatusCause::PreComputeFailedUnknownIssue);
+                    0
+                }); // TODO: replace with a more specific error
 
         let mut datasets = Vec::with_capacity(iexec_bulk_slice_size + 1);
 
         // Read datasets
         let start_index = if is_dataset_required { 0 } else { 1 };
         for i in start_index..=iexec_bulk_slice_size {
-            let filename = get_env_var_or_error(
+            let filename = match get_env_var_or_error(
                 TeeSessionEnvironmentVariable::IexecDatasetFilename(i),
                 ReplicateStatusCause::PreComputeDatasetFilenameMissing(format!("dataset_{i}")),
-            )?;
-            let url = get_env_var_or_error(
+            ) {
+                Ok(filename) => filename,
+                Err(exit_cause) => {
+                    exit_causes.push(exit_cause);
+                    continue;
+                }
+            };
+
+            let url = match get_env_var_or_error(
                 TeeSessionEnvironmentVariable::IexecDatasetUrl(i),
                 ReplicateStatusCause::PreComputeDatasetUrlMissing(filename.clone()),
-            )?;
-            let checksum = get_env_var_or_error(
+            ) {
+                Ok(url) => url,
+                Err(exit_cause) => {
+                    exit_causes.push(exit_cause);
+                    continue;
+                }
+            };
+
+            let checksum = match get_env_var_or_error(
                 TeeSessionEnvironmentVariable::IexecDatasetChecksum(i),
                 ReplicateStatusCause::PreComputeDatasetChecksumMissing(filename.clone()),
-            )?;
-            let key = get_env_var_or_error(
+            ) {
+                Ok(checksum) => checksum,
+                Err(exit_cause) => {
+                    exit_causes.push(exit_cause);
+                    continue;
+                }
+            };
+
+            let key = match get_env_var_or_error(
                 TeeSessionEnvironmentVariable::IexecDatasetKey(i),
                 ReplicateStatusCause::PreComputeDatasetKeyMissing(filename.clone()),
-            )?;
+            ) {
+                Ok(key) => key,
+                Err(exit_cause) => {
+                    exit_causes.push(exit_cause);
+                    continue;
+                }
+            };
 
             datasets.push(Dataset::new(url, checksum, filename, key));
         }
 
-        let input_files_nb_str = get_env_var_or_error(
+        let input_files_nb = get_env_var_or_error(
             TeeSessionEnvironmentVariable::IexecInputFilesNumber,
             ReplicateStatusCause::PreComputeInputFilesNumberMissing,
-        )?;
-        let input_files_nb = input_files_nb_str
-            .parse::<usize>()
-            .map_err(|_| ReplicateStatusCause::PreComputeInputFilesNumberMissing)?;
-
-        let mut input_files = Vec::with_capacity(input_files_nb);
-        for i in 1..=input_files_nb {
-            let url = get_env_var_or_error(
-                TeeSessionEnvironmentVariable::IexecInputFileUrlPrefix(i),
-                ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing(i),
-            )?;
-            input_files.push(url);
-        }
-
-        Ok(PreComputeArgs {
-            output_dir,
-            is_dataset_required,
-            input_files,
-            iexec_bulk_slice_size,
-            datasets,
+        )
+        .and_then(|s| {
+            s.parse::<usize>()
+                .map_err(|_| ReplicateStatusCause::PreComputeInputFilesNumberMissing)
         })
+        .unwrap_or_else(|e| {
+            exit_causes.push(e);
+            0
+        });
+
+        let input_files: Vec<String> = (1..=input_files_nb)
+            .filter_map(|i| {
+                get_env_var_or_error(
+                    TeeSessionEnvironmentVariable::IexecInputFileUrlPrefix(i),
+                    ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing(i),
+                )
+                .map_err(|e| exit_causes.push(e))
+                .ok()
+            })
+            .collect();
+        (
+            PreComputeArgs {
+                output_dir,
+                is_dataset_required,
+                input_files,
+                iexec_bulk_slice_size,
+                datasets,
+            },
+            exit_causes,
+        )
     }
 }
 
@@ -210,8 +257,8 @@ mod tests {
         temp_env::with_vars(to_temp_env_vars(env_vars), || {
             let result = PreComputeArgs::read_args();
 
-            assert!(result.is_ok());
-            let args = result.unwrap();
+            assert!(result.1.is_empty());
+            let args = result.0;
 
             assert_eq!(args.output_dir, OUTPUT_DIR);
             assert!(!args.is_dataset_required);
@@ -232,8 +279,8 @@ mod tests {
         temp_env::with_vars(to_temp_env_vars(env_vars), || {
             let result = PreComputeArgs::read_args();
 
-            assert!(result.is_ok());
-            let args = result.unwrap();
+            assert!(result.1.is_empty());
+            let args = result.0;
 
             assert_eq!(args.output_dir, OUTPUT_DIR);
             assert!(args.is_dataset_required);
@@ -258,8 +305,8 @@ mod tests {
         temp_env::with_vars(to_temp_env_vars(env_vars), || {
             let result = PreComputeArgs::read_args();
 
-            assert!(result.is_ok());
-            let args = result.unwrap();
+            assert!(result.1.is_empty());
+            let args = result.0;
 
             assert_eq!(args.output_dir, OUTPUT_DIR);
             assert!(!args.is_dataset_required);
@@ -283,8 +330,8 @@ mod tests {
 
             temp_env::with_vars(to_temp_env_vars(env_vars), || {
                 let result = PreComputeArgs::read_args();
-                assert!(result.is_ok());
-                let args = result.unwrap();
+                assert!(result.1.is_empty());
+                let args = result.0;
                 assert!(!args.is_dataset_required);
             });
         }
@@ -297,10 +344,10 @@ mod tests {
 
         temp_env::with_vars(to_temp_env_vars(env_vars), || {
             let result = PreComputeArgs::read_args();
-            assert!(result.is_err());
+            assert!(!result.1.is_empty());
             assert_eq!(
-                result.unwrap_err(),
-                ReplicateStatusCause::PreComputeIsDatasetRequiredMissing
+                result.1,
+                vec![ReplicateStatusCause::PreComputeIsDatasetRequiredMissing]
             );
         });
     }
@@ -316,10 +363,10 @@ mod tests {
 
         temp_env::with_vars(to_temp_env_vars(env_vars), || {
             let result = PreComputeArgs::read_args();
-            assert!(result.is_err());
+            assert!(!result.1.is_empty());
             assert_eq!(
-                result.unwrap_err(),
-                ReplicateStatusCause::PreComputeInputFilesNumberMissing
+                result.1,
+                vec![ReplicateStatusCause::PreComputeInputFilesNumberMissing]
             );
         });
     }
@@ -336,8 +383,8 @@ mod tests {
         temp_env::with_vars(to_temp_env_vars(env_vars), || {
             let result = PreComputeArgs::read_args();
 
-            assert!(result.is_ok());
-            let args = result.unwrap();
+            assert!(result.1.is_empty());
+            let args = result.0;
 
             assert_eq!(args.output_dir, OUTPUT_DIR);
             assert!(!args.is_dataset_required);
@@ -375,8 +422,8 @@ mod tests {
         temp_env::with_vars(to_temp_env_vars(env_vars), || {
             let result = PreComputeArgs::read_args();
 
-            assert!(result.is_ok());
-            let args = result.unwrap();
+            assert!(result.1.is_empty());
+            let args = result.0;
 
             assert_eq!(args.output_dir, OUTPUT_DIR);
             assert!(args.is_dataset_required);
@@ -405,10 +452,10 @@ mod tests {
 
         temp_env::with_vars(to_temp_env_vars(env_vars), || {
             let result = PreComputeArgs::read_args();
-            assert!(result.is_err());
+            assert!(!result.1.is_empty());
             assert_eq!(
-                result.unwrap_err(),
-                ReplicateStatusCause::PreComputeFailedUnknownIssue
+                result.1,
+                vec![ReplicateStatusCause::PreComputeFailedUnknownIssue]
             );
         });
     }
@@ -424,10 +471,12 @@ mod tests {
 
         temp_env::with_vars(to_temp_env_vars(env_vars), || {
             let result = PreComputeArgs::read_args();
-            assert!(result.is_err());
+            assert!(!result.1.is_empty());
             assert_eq!(
-                result.unwrap_err(),
-                ReplicateStatusCause::PreComputeDatasetUrlMissing("bulk-dataset-1.txt".to_string())
+                result.1,
+                vec![ReplicateStatusCause::PreComputeDatasetUrlMissing(
+                    "bulk-dataset-1.txt".to_string()
+                )]
             );
         });
     }
@@ -443,12 +492,12 @@ mod tests {
 
         temp_env::with_vars(to_temp_env_vars(env_vars), || {
             let result = PreComputeArgs::read_args();
-            assert!(result.is_err());
+            assert!(!result.1.is_empty());
             assert_eq!(
-                result.unwrap_err(),
-                ReplicateStatusCause::PreComputeDatasetChecksumMissing(
+                result.1,
+                vec![ReplicateStatusCause::PreComputeDatasetChecksumMissing(
                     "bulk-dataset-2.txt".to_string()
-                )
+                )]
             );
         });
     }
@@ -464,10 +513,12 @@ mod tests {
 
         temp_env::with_vars(to_temp_env_vars(env_vars), || {
             let result = PreComputeArgs::read_args();
-            assert!(result.is_err());
+            assert!(!result.1.is_empty());
             assert_eq!(
-                result.unwrap_err(),
-                ReplicateStatusCause::PreComputeDatasetFilenameMissing("dataset_2".to_string())
+                result.1,
+                vec![ReplicateStatusCause::PreComputeDatasetFilenameMissing(
+                    "dataset_2".to_string()
+                )]
             );
         });
     }
@@ -483,10 +534,12 @@ mod tests {
 
         temp_env::with_vars(to_temp_env_vars(env_vars), || {
             let result = PreComputeArgs::read_args();
-            assert!(result.is_err());
+            assert!(!result.1.is_empty());
             assert_eq!(
-                result.unwrap_err(),
-                ReplicateStatusCause::PreComputeDatasetKeyMissing("bulk-dataset-1.txt".to_string())
+                result.1,
+                vec![ReplicateStatusCause::PreComputeDatasetKeyMissing(
+                    "bulk-dataset-1.txt".to_string()
+                )]
             );
         });
     }
@@ -532,13 +585,13 @@ mod tests {
             ),
         ];
         for (env_var, error) in missing_env_var_causes {
-            test_read_args_fails_with_missing_env_var(env_var, error);
+            test_read_args_fails_with_missing_env_var(env_var, vec![error]);
         }
     }
 
     fn test_read_args_fails_with_missing_env_var(
         env_var: TeeSessionEnvironmentVariable,
-        error: ReplicateStatusCause,
+        errors: Vec<ReplicateStatusCause>,
     ) {
         //Set up environment variables
         let mut env_vars = setup_basic_env_vars();
@@ -548,8 +601,261 @@ mod tests {
 
         temp_env::with_vars(to_temp_env_vars(env_vars), || {
             let result = PreComputeArgs::read_args();
-            assert!(result.is_err());
-            assert_eq!(result.unwrap_err(), error);
+            assert!(!result.1.is_empty());
+            assert_eq!(result.1, errors);
+        });
+    }
+    // endregion
+
+    // region error collection tests
+    #[test]
+    fn read_args_collects_multiple_errors_when_multiple_env_vars_missing() {
+        let mut env_vars = setup_basic_env_vars();
+        env_vars.extend(setup_dataset_env_vars());
+        env_vars.extend(setup_input_files_env_vars(2));
+        
+        // Remove dataset URL and an input file URL
+        env_vars.remove(&IexecDatasetUrl(0).name());
+        env_vars.remove(&IexecInputFileUrlPrefix(1).name());
+
+        temp_env::with_vars(to_temp_env_vars(env_vars), || {
+            let result = PreComputeArgs::read_args();
+            
+            // Should collect both errors (dataset stops at URL, input file error also collected)
+            assert_eq!(result.1.len(), 2);
+            assert!(result.1.contains(&ReplicateStatusCause::PreComputeDatasetUrlMissing(
+                DATASET_FILENAME.to_string()
+            )));
+            assert!(result.1.contains(&ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing(1)));
+        });
+    }
+
+    #[test]
+    fn read_args_collects_errors_for_partial_bulk_dataset_failures() {
+        let mut env_vars = setup_basic_env_vars();
+        env_vars.insert(IsDatasetRequired.name(), "false".to_string());
+        env_vars.extend(setup_input_files_env_vars(0));
+        env_vars.extend(setup_bulk_dataset_env_vars(3));
+        
+        // Remove various fields from different bulk datasets
+        env_vars.remove(&IexecDatasetUrl(1).name());
+        env_vars.remove(&IexecDatasetChecksum(2).name());
+        env_vars.remove(&IexecDatasetKey(3).name());
+
+        temp_env::with_vars(to_temp_env_vars(env_vars), || {
+            let result = PreComputeArgs::read_args();
+            
+            // Should collect all 3 errors
+            assert_eq!(result.1.len(), 3);
+            assert!(result.1.contains(&ReplicateStatusCause::PreComputeDatasetUrlMissing(
+                "bulk-dataset-1.txt".to_string()
+            )));
+            assert!(result.1.contains(&ReplicateStatusCause::PreComputeDatasetChecksumMissing(
+                "bulk-dataset-2.txt".to_string()
+            )));
+            assert!(result.1.contains(&ReplicateStatusCause::PreComputeDatasetKeyMissing(
+                "bulk-dataset-3.txt".to_string()
+            )));
+            
+            // No datasets should be added since they all had errors
+            assert_eq!(result.0.datasets.len(), 0);
+        });
+    }
+
+    #[test]
+    fn read_args_continues_processing_after_dataset_errors() {
+        let mut env_vars = setup_basic_env_vars();
+        env_vars.insert(IsDatasetRequired.name(), "false".to_string());
+        env_vars.extend(setup_input_files_env_vars(0));
+        env_vars.extend(setup_bulk_dataset_env_vars(3));
+        
+        // Remove only the second dataset's URL
+        env_vars.remove(&IexecDatasetUrl(2).name());
+
+        temp_env::with_vars(to_temp_env_vars(env_vars), || {
+            let result = PreComputeArgs::read_args();
+            
+            // Should have one error for the missing URL
+            assert_eq!(result.1.len(), 1);
+            assert_eq!(
+                result.1[0],
+                ReplicateStatusCause::PreComputeDatasetUrlMissing("bulk-dataset-2.txt".to_string())
+            );
+            
+            // Should successfully load the other two datasets
+            assert_eq!(result.0.datasets.len(), 2);
+            assert_eq!(result.0.datasets[0].url, "https://bulk-dataset-1.bin");
+            assert_eq!(result.0.datasets[1].url, "https://bulk-dataset-3.bin");
+        });
+    }
+
+    #[test]
+    fn read_args_collects_all_missing_input_file_urls() {
+        let mut env_vars = setup_basic_env_vars();
+        env_vars.insert(IsDatasetRequired.name(), "false".to_string());
+        env_vars.extend(setup_input_files_env_vars(5));
+        
+        // Remove multiple input file URLs
+        env_vars.remove(&IexecInputFileUrlPrefix(2).name());
+        env_vars.remove(&IexecInputFileUrlPrefix(4).name());
+
+        temp_env::with_vars(to_temp_env_vars(env_vars), || {
+            let result = PreComputeArgs::read_args();
+            
+            // Should collect errors for missing URLs
+            assert_eq!(result.1.len(), 2);
+            assert!(result.1.contains(&ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing(2)));
+            assert!(result.1.contains(&ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing(4)));
+            
+            // Should successfully load the other three input files
+            assert_eq!(result.0.input_files.len(), 3);
+            assert_eq!(result.0.input_files[0], "https://input-1.txt");
+            assert_eq!(result.0.input_files[1], "https://input-3.txt");
+            assert_eq!(result.0.input_files[2], "https://input-5.txt");
+        });
+    }
+
+    #[test]
+    fn read_args_handles_mixed_errors_across_all_categories() {
+        let mut env_vars = setup_basic_env_vars();
+        env_vars.extend(setup_dataset_env_vars());
+        env_vars.extend(setup_input_files_env_vars(3));
+        env_vars.extend(setup_bulk_dataset_env_vars(2));
+        
+        // Create errors across different categories
+        env_vars.insert(IsDatasetRequired.name(), "invalid-bool".to_string());
+        // Since invalid bool defaults to false, dataset at index 0 won't be read
+        // So we need to remove fields from bulk datasets (indices 1 and 2)
+        env_vars.remove(&IexecDatasetChecksum(1).name()); // Bulk dataset 1 error
+        env_vars.remove(&IexecInputFileUrlPrefix(2).name()); // Input file error
+
+        temp_env::with_vars(to_temp_env_vars(env_vars), || {
+            let result = PreComputeArgs::read_args();
+            
+            // Should collect: bool parse error, bulk dataset checksum error, input file error
+            assert_eq!(result.1.len(), 3);
+            assert!(result.1.contains(&ReplicateStatusCause::PreComputeIsDatasetRequiredMissing));
+            assert!(result.1.contains(&ReplicateStatusCause::PreComputeDatasetChecksumMissing(
+                "bulk-dataset-1.txt".to_string()
+            )));
+            assert!(result.1.contains(&ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing(2)));
+        });
+    }
+
+    #[test]
+    fn read_args_processes_valid_datasets_despite_some_failures() {
+        let mut env_vars = setup_basic_env_vars();
+        env_vars.extend(setup_dataset_env_vars());
+        env_vars.extend(setup_input_files_env_vars(0));
+        env_vars.extend(setup_bulk_dataset_env_vars(4));
+        
+        // Break datasets at indices 1 and 3
+        env_vars.remove(&IexecDatasetUrl(1).name());
+        env_vars.remove(&IexecDatasetKey(3).name());
+
+        temp_env::with_vars(to_temp_env_vars(env_vars), || {
+            let result = PreComputeArgs::read_args();
+            
+            // Should have 2 errors
+            assert_eq!(result.1.len(), 2);
+            
+            // Should successfully load datasets at indices 0, 2, and 4
+            assert_eq!(result.0.datasets.len(), 3);
+            assert_eq!(result.0.datasets[0].url, DATASET_URL);
+            assert_eq!(result.0.datasets[1].url, "https://bulk-dataset-2.bin");
+            assert_eq!(result.0.datasets[2].url, "https://bulk-dataset-4.bin");
+        });
+    }
+
+    #[test]
+    fn read_args_continues_after_bulk_slice_size_parse_error() {
+        let mut env_vars = setup_basic_env_vars();
+        env_vars.insert(IsDatasetRequired.name(), "false".to_string());
+        env_vars.extend(setup_input_files_env_vars(2));
+        env_vars.insert(IexecBulkSliceSize.name(), "invalid-number".to_string());
+
+        temp_env::with_vars(to_temp_env_vars(env_vars), || {
+            let result = PreComputeArgs::read_args();
+            
+            // Should collect the parse error
+            assert_eq!(result.1.len(), 1);
+            assert_eq!(result.1[0], ReplicateStatusCause::PreComputeFailedUnknownIssue);
+            
+            // Should still process input files successfully
+            assert_eq!(result.0.input_files.len(), 2);
+            assert_eq!(result.0.iexec_bulk_slice_size, 0);
+        });
+    }
+
+    #[test]
+    fn read_args_collects_all_dataset_field_errors_for_single_dataset() {
+        let mut env_vars = setup_basic_env_vars();
+        env_vars.insert(IsDatasetRequired.name(), "false".to_string());
+        env_vars.extend(setup_input_files_env_vars(0));
+        
+        // Set up only one bulk dataset but with missing filename (first field checked)
+        env_vars.insert(IexecBulkSliceSize.name(), "1".to_string());
+        // Intentionally not setting filename - this will cause early exit from loop
+
+        temp_env::with_vars(to_temp_env_vars(env_vars), || {
+            let result = PreComputeArgs::read_args();
+            
+            // Should collect error for missing filename (loop exits early, doesn't check other fields)
+            assert_eq!(result.1.len(), 1);
+            assert_eq!(
+                result.1[0],
+                ReplicateStatusCause::PreComputeDatasetFilenameMissing("dataset_1".to_string())
+            );
+            
+            // No dataset should be added
+            assert_eq!(result.0.datasets.len(), 0);
+        });
+    }
+
+    #[test]
+    fn read_args_stops_at_first_dataset_field_error() {
+        let mut env_vars = setup_basic_env_vars();
+        env_vars.insert(IsDatasetRequired.name(), "false".to_string());
+        env_vars.extend(setup_input_files_env_vars(0));
+        
+        // Set up bulk dataset with filename but missing URL (second field checked)
+        env_vars.insert(IexecBulkSliceSize.name(), "1".to_string());
+        env_vars.insert(IexecDatasetFilename(1).name(), "incomplete-dataset.txt".to_string());
+        // Missing URL, checksum, and key - but should only report URL error
+
+        temp_env::with_vars(to_temp_env_vars(env_vars), || {
+            let result = PreComputeArgs::read_args();
+            
+            // Should only collect error for the first missing field (URL)
+            assert_eq!(result.1.len(), 1);
+            assert_eq!(
+                result.1[0],
+                ReplicateStatusCause::PreComputeDatasetUrlMissing("incomplete-dataset.txt".to_string())
+            );
+            
+            // No dataset should be added
+            assert_eq!(result.0.datasets.len(), 0);
+        });
+    }
+
+    #[test]
+    fn read_args_handles_empty_input_files_list_with_errors() {
+        let mut env_vars = setup_basic_env_vars();
+        env_vars.insert(IsDatasetRequired.name(), "false".to_string());
+        env_vars.insert(IexecInputFilesNumber.name(), "3".to_string());
+        // Intentionally not setting any input file URLs
+
+        temp_env::with_vars(to_temp_env_vars(env_vars), || {
+            let result = PreComputeArgs::read_args();
+            
+            // Should collect errors for all missing input files
+            assert_eq!(result.1.len(), 3);
+            assert!(result.1.contains(&ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing(1)));
+            assert!(result.1.contains(&ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing(2)));
+            assert!(result.1.contains(&ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing(3)));
+            
+            // Input files should be empty
+            assert_eq!(result.0.input_files.len(), 0);
         });
     }
     // endregion
