@@ -128,10 +128,10 @@ impl PreComputeArgs {
         info!(
             "Reading datasets from index {start_index} to {iexec_bulk_slice_size} (is_dataset_required: {is_dataset_required})"
         );
-        
+
         for i in start_index..=iexec_bulk_slice_size {
             info!("Processing dataset at index {i}");
-            
+
             let filename = match get_env_var_or_error(
                 TeeSessionEnvironmentVariable::IexecDatasetFilename(i),
                 ReplicateStatusCause::PreComputeDatasetFilenameMissing(format!("dataset_{i}")),
@@ -195,7 +195,7 @@ impl PreComputeArgs {
             info!("Successfully loaded dataset {i} ({filename})");
             datasets.push(Dataset::new(url, checksum, filename, key));
         }
-        
+
         info!("Successfully loaded {} datasets", datasets.len());
 
         let input_files_nb = match get_env_var_or_error(
@@ -238,9 +238,9 @@ impl PreComputeArgs {
                 })
             })
             .collect();
-        
+
         info!("Successfully loaded {} input files", input_files.len());
-        
+
         if !exit_causes.is_empty() {
             error!(
                 "Encountered {} error(s) while reading pre-compute arguments",
@@ -249,7 +249,7 @@ impl PreComputeArgs {
         } else {
             info!("Successfully read all pre-compute arguments without errors");
         }
-        
+
         (
             PreComputeArgs {
                 output_dir,
