@@ -63,17 +63,6 @@ impl PreComputeArgs {
         info!("Starting to read pre-compute arguments from environment variables");
         let mut exit_causes: Vec<ReplicateStatusCause> = vec![];
 
-        let output_dir = match get_env_var_or_error(
-            TeeSessionEnvironmentVariable::IexecPreComputeOut,
-            ReplicateStatusCause::PreComputeOutputPathMissing,
-        ) {
-            Ok(output_dir) => output_dir,
-            Err(e) => {
-                error!("Failed to read output directory: {e:?}");
-                return (PreComputeArgs::default(), vec![e]);
-            }
-        };
-
         let is_dataset_required = match get_env_var_or_error(
             TeeSessionEnvironmentVariable::IsDatasetRequired,
             ReplicateStatusCause::PreComputeIsDatasetRequiredMissing,
@@ -212,7 +201,7 @@ impl PreComputeArgs {
 
         (
             PreComputeArgs {
-                output_dir,
+                output_dir: String::new(),
                 is_dataset_required,
                 input_files,
                 iexec_bulk_slice_size,
@@ -230,7 +219,6 @@ mod tests {
     use crate::compute::utils::env_utils::TeeSessionEnvironmentVariable::*;
     use std::collections::HashMap;
 
-    const OUTPUT_DIR: &str = "/iexec_out";
     const DATASET_URL: &str = "https://dataset.url";
     const DATASET_KEY: &str = "datasetKey123";
     const DATASET_CHECKSUM: &str = "0x123checksum";
@@ -238,7 +226,6 @@ mod tests {
 
     fn setup_basic_env_vars() -> HashMap<String, String> {
         let mut vars = HashMap::new();
-        vars.insert(IexecPreComputeOut.name(), OUTPUT_DIR.to_string());
         vars.insert(IsDatasetRequired.name(), "true".to_string());
         vars.insert(IexecInputFilesNumber.name(), "0".to_string());
         vars.insert(IexecBulkSliceSize.name(), "0".to_string()); // Default to no bulk processing
@@ -303,7 +290,7 @@ mod tests {
             assert!(result.1.is_empty());
             let args = result.0;
 
-            assert_eq!(args.output_dir, OUTPUT_DIR);
+            assert_eq!(args.output_dir, "");
             assert!(!args.is_dataset_required);
             assert_eq!(args.input_files.len(), 1);
             assert_eq!(args.input_files[0], "https://input-1.txt");
@@ -325,7 +312,7 @@ mod tests {
             assert!(result.1.is_empty());
             let args = result.0;
 
-            assert_eq!(args.output_dir, OUTPUT_DIR);
+            assert_eq!(args.output_dir, "");
             assert!(args.is_dataset_required);
             assert_eq!(args.datasets[0].url, DATASET_URL.to_string());
             assert_eq!(args.datasets[0].key, DATASET_KEY.to_string());
@@ -351,7 +338,7 @@ mod tests {
             assert!(result.1.is_empty());
             let args = result.0;
 
-            assert_eq!(args.output_dir, OUTPUT_DIR);
+            assert_eq!(args.output_dir, "");
             assert!(!args.is_dataset_required);
             assert_eq!(args.input_files.len(), 3);
             assert_eq!(args.input_files[0], "https://input-1.txt");
@@ -429,7 +416,7 @@ mod tests {
             assert!(result.1.is_empty());
             let args = result.0;
 
-            assert_eq!(args.output_dir, OUTPUT_DIR);
+            assert_eq!(args.output_dir, "");
             assert!(!args.is_dataset_required);
             assert_eq!(args.iexec_bulk_slice_size, 3);
             assert_eq!(args.datasets.len(), 3);
@@ -468,7 +455,7 @@ mod tests {
             assert!(result.1.is_empty());
             let args = result.0;
 
-            assert_eq!(args.output_dir, OUTPUT_DIR);
+            assert_eq!(args.output_dir, "");
             assert!(args.is_dataset_required);
             assert_eq!(args.iexec_bulk_slice_size, 2);
             assert_eq!(args.datasets.len(), 3); // 1 regular + 2 bulk datasets
@@ -592,10 +579,6 @@ mod tests {
     #[test]
     fn read_args_fails_when_dataset_env_var_missing() {
         let missing_env_var_causes = vec![
-            (
-                IexecPreComputeOut,
-                ReplicateStatusCause::PreComputeOutputPathMissing,
-            ),
             (
                 IsDatasetRequired,
                 ReplicateStatusCause::PreComputeIsDatasetRequiredMissing,

@@ -1,5 +1,6 @@
 use crate::compute::errors::ReplicateStatusCause;
 use crate::compute::pre_compute_args::PreComputeArgs;
+use crate::compute::utils::env_utils::{TeeSessionEnvironmentVariable, get_env_var_or_error};
 use crate::compute::utils::file_utils::{download_file, write_file};
 use crate::compute::utils::hash_utils::sha256;
 use log::{error, info};
@@ -56,7 +57,20 @@ impl PreComputeAppTrait for PreComputeApp {
     /// app.run();
     /// ```
     fn run(&mut self) -> Result<(), Vec<ReplicateStatusCause>> {
-        let (args, mut exit_causes) = PreComputeArgs::read_args();
+        let (mut args, mut exit_causes): (PreComputeArgs, Vec<ReplicateStatusCause>);
+        match get_env_var_or_error(
+            TeeSessionEnvironmentVariable::IexecPreComputeOut,
+            ReplicateStatusCause::PreComputeOutputPathMissing,
+        ) {
+            Ok(output_dir) => {
+                (args, exit_causes) = PreComputeArgs::read_args();
+                args.output_dir = output_dir;
+            }
+            Err(e) => {
+                error!("Failed to read output directory: {e:?}");
+                return Err(vec![e]);
+            }
+        };
         self.pre_compute_args = args;
 
         if let Err(exit_cause) = self.check_output_folder() {
