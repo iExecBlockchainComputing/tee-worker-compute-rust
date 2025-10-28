@@ -67,12 +67,8 @@ impl PreComputeArgs {
             TeeSessionEnvironmentVariable::IexecPreComputeOut,
             ReplicateStatusCause::PreComputeOutputPathMissing,
         ) {
-            Ok(output_dir) => {
-                info!("Successfully read output directory: {output_dir}");
-                output_dir
-            }
+            Ok(output_dir) => output_dir,
             Err(e) => {
-                error!("Failed to read output directory: {e:?}");
                 return (PreComputeArgs::default(), vec![e]);
             }
         };
@@ -82,18 +78,13 @@ impl PreComputeArgs {
             ReplicateStatusCause::PreComputeIsDatasetRequiredMissing,
         ) {
             Ok(s) => match s.to_lowercase().parse::<bool>() {
-                Ok(value) => {
-                    info!("Dataset required: {value}");
-                    value
-                }
+                Ok(value) => value,
                 Err(_) => {
-                    error!("Invalid boolean format for IS_DATASET_REQUIRED: {s}");
                     exit_causes.push(ReplicateStatusCause::PreComputeIsDatasetRequiredMissing);
                     false
                 }
             },
             Err(e) => {
-                error!("Failed to read IS_DATASET_REQUIRED: {e:?}");
                 exit_causes.push(e);
                 false
             }
@@ -104,18 +95,13 @@ impl PreComputeArgs {
             ReplicateStatusCause::PreComputeFailedUnknownIssue,
         ) {
             Ok(s) => match s.parse::<usize>() {
-                Ok(value) => {
-                    info!("Bulk slice size: {value}");
-                    value
-                }
+                Ok(value) => value,
                 Err(_) => {
-                    error!("Invalid numeric format for IEXEC_BULK_SLICE_SIZE: {s}");
                     exit_causes.push(ReplicateStatusCause::PreComputeFailedUnknownIssue);
                     0
                 }
             },
             Err(e) => {
-                error!("Failed to read IEXEC_BULK_SLICE_SIZE: {e:?}");
                 exit_causes.push(e);
                 0
             }
@@ -125,23 +111,13 @@ impl PreComputeArgs {
 
         // Read datasets
         let start_index = if is_dataset_required { 0 } else { 1 };
-        info!(
-            "Reading datasets from index {start_index} to {iexec_bulk_slice_size} (is_dataset_required: {is_dataset_required})"
-        );
-
         for i in start_index..=iexec_bulk_slice_size {
-            info!("Processing dataset at index {i}");
-
             let filename = match get_env_var_or_error(
                 TeeSessionEnvironmentVariable::IexecDatasetFilename(i),
                 ReplicateStatusCause::PreComputeDatasetFilenameMissing(format!("dataset_{i}")),
             ) {
-                Ok(filename) => {
-                    info!("Dataset {i} filename: {filename}");
-                    filename
-                }
+                Ok(filename) => filename,
                 Err(e) => {
-                    error!("Failed to read dataset {i} filename: {e:?}");
                     exit_causes.push(e);
                     continue;
                 }
@@ -151,12 +127,8 @@ impl PreComputeArgs {
                 TeeSessionEnvironmentVariable::IexecDatasetUrl(i),
                 ReplicateStatusCause::PreComputeDatasetUrlMissing(filename.clone()),
             ) {
-                Ok(url) => {
-                    info!("Dataset {i} URL: {url}");
-                    url
-                }
+                Ok(url) => url,
                 Err(e) => {
-                    error!("Failed to read dataset {i} URL: {e:?}");
                     exit_causes.push(e);
                     continue;
                 }
@@ -166,12 +138,8 @@ impl PreComputeArgs {
                 TeeSessionEnvironmentVariable::IexecDatasetChecksum(i),
                 ReplicateStatusCause::PreComputeDatasetChecksumMissing(filename.clone()),
             ) {
-                Ok(checksum) => {
-                    info!("Dataset {i} checksum: {checksum}");
-                    checksum
-                }
+                Ok(checksum) => checksum,
                 Err(e) => {
-                    error!("Failed to read dataset {i} checksum: {e:?}");
                     exit_causes.push(e);
                     continue;
                 }
@@ -181,65 +149,47 @@ impl PreComputeArgs {
                 TeeSessionEnvironmentVariable::IexecDatasetKey(i),
                 ReplicateStatusCause::PreComputeDatasetKeyMissing(filename.clone()),
             ) {
-                Ok(key) => {
-                    info!("Dataset {i} key successfully read");
-                    key
-                }
+                Ok(key) => key,
                 Err(e) => {
-                    error!("Failed to read dataset {i} key: {e:?}");
                     exit_causes.push(e);
                     continue;
                 }
             };
 
-            info!("Successfully loaded dataset {i} ({filename})");
             datasets.push(Dataset::new(url, checksum, filename, key));
         }
-
-        info!("Successfully loaded {} datasets", datasets.len());
 
         let input_files_nb = match get_env_var_or_error(
             TeeSessionEnvironmentVariable::IexecInputFilesNumber,
             ReplicateStatusCause::PreComputeInputFilesNumberMissing,
         ) {
             Ok(s) => match s.parse::<usize>() {
-                Ok(value) => {
-                    info!("Number of input files: {value}");
-                    value
-                }
+                Ok(value) => value,
                 Err(_) => {
-                    error!("Invalid numeric format for IEXEC_INPUT_FILES_NUMBER: {s}");
                     exit_causes.push(ReplicateStatusCause::PreComputeInputFilesNumberMissing);
                     0
                 }
             },
             Err(e) => {
-                error!("Failed to read IEXEC_INPUT_FILES_NUMBER: {e:?}");
                 exit_causes.push(e);
                 0
             }
         };
 
-        info!("Reading {input_files_nb} input file URLs");
         let input_files: Vec<String> = (1..=input_files_nb)
             .filter_map(|i| {
-                get_env_var_or_error(
+                match get_env_var_or_error(
                     TeeSessionEnvironmentVariable::IexecInputFileUrlPrefix(i),
                     ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing(i),
-                )
-                .map_err(|e| {
-                    error!("Failed to read input file {i} URL: {e:?}");
-                    exit_causes.push(e)
-                })
-                .ok()
-                .map(|url| {
-                    info!("Input file {i} URL: {url}");
-                    url
-                })
+                ) {
+                    Ok(url) => Some(url),
+                    Err(e) => {
+                        exit_causes.push(e);
+                        None
+                    }
+                }
             })
             .collect();
-
-        info!("Successfully loaded {} input files", input_files.len());
 
         if !exit_causes.is_empty() {
             error!(
