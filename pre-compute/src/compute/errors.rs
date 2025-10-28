@@ -28,7 +28,7 @@ pub enum ReplicateStatusCause {
     #[error("IS_DATASET_REQUIRED environment variable is missing")]
     PreComputeIsDatasetRequiredMissing,
     #[error("Input file download failed for input {0}")]
-    PreComputeInputFileDownloadFailed(usize),
+    PreComputeInputFileDownloadFailed(String),
     #[error("Input files number related environment variable is missing")]
     PreComputeInputFilesNumberMissing,
     #[error("Invalid dataset checksum for dataset {0}")]

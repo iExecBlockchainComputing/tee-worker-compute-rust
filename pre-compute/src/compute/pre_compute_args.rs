@@ -69,6 +69,7 @@ impl PreComputeArgs {
         ) {
             Ok(output_dir) => output_dir,
             Err(e) => {
+                error!("Failed to read output directory: {e:?}");
                 return (PreComputeArgs::default(), vec![e]);
             }
         };
@@ -80,11 +81,13 @@ impl PreComputeArgs {
             Ok(s) => match s.to_lowercase().parse::<bool>() {
                 Ok(value) => value,
                 Err(_) => {
+                    error!("Invalid boolean format for IS_DATASET_REQUIRED: {s}");
                     exit_causes.push(ReplicateStatusCause::PreComputeIsDatasetRequiredMissing);
                     false
                 }
             },
             Err(e) => {
+                error!("Failed to read IS_DATASET_REQUIRED: {e:?}");
                 exit_causes.push(e);
                 false
             }
@@ -97,11 +100,13 @@ impl PreComputeArgs {
             Ok(s) => match s.parse::<usize>() {
                 Ok(value) => value,
                 Err(_) => {
+                    error!("Invalid numeric format for IEXEC_BULK_SLICE_SIZE: {s}");
                     exit_causes.push(ReplicateStatusCause::PreComputeFailedUnknownIssue);
                     0
                 }
             },
             Err(e) => {
+                error!("Failed to read IEXEC_BULK_SLICE_SIZE: {e:?}");
                 exit_causes.push(e);
                 0
             }
@@ -118,6 +123,7 @@ impl PreComputeArgs {
             ) {
                 Ok(filename) => filename,
                 Err(e) => {
+                    error!("Failed to read dataset {i} filename: {e:?}");
                     exit_causes.push(e);
                     continue;
                 }
@@ -129,6 +135,7 @@ impl PreComputeArgs {
             ) {
                 Ok(url) => url,
                 Err(e) => {
+                    error!("Failed to read dataset {i} URL: {e:?}");
                     exit_causes.push(e);
                     continue;
                 }
@@ -140,6 +147,7 @@ impl PreComputeArgs {
             ) {
                 Ok(checksum) => checksum,
                 Err(e) => {
+                    error!("Failed to read dataset {i} checksum: {e:?}");
                     exit_causes.push(e);
                     continue;
                 }
@@ -151,6 +159,7 @@ impl PreComputeArgs {
             ) {
                 Ok(key) => key,
                 Err(e) => {
+                    error!("Failed to read dataset {i} key: {e:?}");
                     exit_causes.push(e);
                     continue;
                 }
@@ -166,30 +175,31 @@ impl PreComputeArgs {
             Ok(s) => match s.parse::<usize>() {
                 Ok(value) => value,
                 Err(_) => {
+                    error!("Invalid numeric format for IEXEC_INPUT_FILES_NUMBER: {s}");
                     exit_causes.push(ReplicateStatusCause::PreComputeInputFilesNumberMissing);
                     0
                 }
             },
             Err(e) => {
+                error!("Failed to read IEXEC_INPUT_FILES_NUMBER: {e:?}");
                 exit_causes.push(e);
                 0
             }
         };
 
-        let input_files: Vec<String> = (1..=input_files_nb)
-            .filter_map(|i| {
-                match get_env_var_or_error(
-                    TeeSessionEnvironmentVariable::IexecInputFileUrlPrefix(i),
-                    ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing(i),
-                ) {
-                    Ok(url) => Some(url),
-                    Err(e) => {
-                        exit_causes.push(e);
-                        None
-                    }
+        let mut input_files: Vec<String> = Vec::new();
+        for i in 1..=input_files_nb {
+            match get_env_var_or_error(
+                TeeSessionEnvironmentVariable::IexecInputFileUrlPrefix(i),
+                ReplicateStatusCause::PreComputeAtLeastOneInputFileUrlMissing(i),
+            ) {
+                Ok(url) => input_files.push(url),
+                Err(e) => {
+                    error!("Failed to read input file {i} URL: {e:?}");
+                    exit_causes.push(e)
                 }
-            })
-            .collect();
+            }
+        }
 
         if !exit_causes.is_empty() {
             error!(

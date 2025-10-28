@@ -114,7 +114,7 @@ impl PreComputeAppTrait for PreComputeApp {
     /// # Returns
     ///
     /// - `Ok(())` if all files are downloaded successfully.
-    /// - `Err(ReplicateStatusCause::PreComputeInputFileDownloadFailed)` if any file fails to download.
+    /// - `Err(ReplicateStatusCause::PreComputeInputFileDownloadFailed(url))` if any file fails to download.
     ///
     /// # Panics
     ///
@@ -126,13 +126,13 @@ impl PreComputeAppTrait for PreComputeApp {
         let args = &self.pre_compute_args;
         let chain_task_id: &str = &self.chain_task_id;
 
-        for (index, url) in args.input_files.iter().enumerate() {
+        for url in args.input_files.iter() {
             info!("Downloading input file [chainTaskId:{chain_task_id}, url:{url}]");
 
             let filename = sha256(url.to_string());
             if download_file(url, &args.output_dir, &filename).is_none() {
                 exit_causes.push(ReplicateStatusCause::PreComputeInputFileDownloadFailed(
-                    index,
+                    url.to_string(),
                 ));
             }
         }
@@ -317,7 +317,9 @@ mod tests {
         let result = app.download_input_files();
         assert_eq!(
             result.unwrap_err(),
-            vec![ReplicateStatusCause::PreComputeInputFileDownloadFailed(0)]
+            vec![ReplicateStatusCause::PreComputeInputFileDownloadFailed(
+                "https://invalid-url-that-should-fail.com/file.txt".to_string()
+            )]
         );
     }
 
@@ -339,7 +341,9 @@ mod tests {
         let result = app.download_input_files();
         assert_eq!(
             result.unwrap_err(),
-            vec![ReplicateStatusCause::PreComputeInputFileDownloadFailed(1)]
+            vec![ReplicateStatusCause::PreComputeInputFileDownloadFailed(
+                "https://invalid-url-that-should-fail.com/file.txt".to_string()
+            )]
         );
 
         // First file should be downloaded with SHA256 filename
