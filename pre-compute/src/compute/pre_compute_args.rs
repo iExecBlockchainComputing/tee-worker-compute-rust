@@ -61,7 +61,7 @@ impl PreComputeArgs {
     /// ```
     pub fn read_args() -> (PreComputeArgs, Vec<ReplicateStatusCause>) {
         info!("Starting to read pre-compute arguments from environment variables");
-        let mut exit_causes: Vec<ReplicateStatusCause> = vec![];
+        let mut exit_causes: Vec<ReplicateStatusCause> = Vec::new();
 
         let is_dataset_required = match get_env_var_or_error(
             TeeSessionEnvironmentVariable::IsDatasetRequired,
@@ -86,19 +86,12 @@ impl PreComputeArgs {
             TeeSessionEnvironmentVariable::IexecBulkSliceSize,
             ReplicateStatusCause::PreComputeFailedUnknownIssue,
         ) {
-            Ok(s) => match s.parse::<usize>() {
-                Ok(value) => value,
-                Err(_) => {
-                    error!("Invalid numeric format for IEXEC_BULK_SLICE_SIZE: {s}");
-                    exit_causes.push(ReplicateStatusCause::PreComputeFailedUnknownIssue);
-                    0
-                }
-            },
-            Err(e) => {
-                error!("Failed to read IEXEC_BULK_SLICE_SIZE: {e:?}");
-                exit_causes.push(e);
+            Ok(s) => s.parse::<usize>().unwrap_or_else(|_| {
+                error!("Invalid numeric format for IEXEC_BULK_SLICE_SIZE: {s}");
+                exit_causes.push(ReplicateStatusCause::PreComputeFailedUnknownIssue);
                 0
-            }
+            }),
+            Err(_) => 0,
         }; // TODO: replace with a more specific error
 
         let mut datasets = Vec::with_capacity(iexec_bulk_slice_size + 1);

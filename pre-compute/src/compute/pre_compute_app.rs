@@ -136,7 +136,7 @@ impl PreComputeAppTrait for PreComputeApp {
     /// - `pre_compute_args` is `None`.
     /// - `chain_task_id` is `None`.
     fn download_input_files(&self) -> Result<(), Vec<ReplicateStatusCause>> {
-        let mut exit_causes: Vec<ReplicateStatusCause> = vec![];
+        let mut exit_causes: Vec<ReplicateStatusCause> = Vec::new();
         let args = &self.pre_compute_args;
         let chain_task_id: &str = &self.chain_task_id;
 
