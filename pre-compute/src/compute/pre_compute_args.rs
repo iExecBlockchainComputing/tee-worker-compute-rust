@@ -23,10 +23,12 @@ pub struct PreComputeArgs {
 impl PreComputeArgs {
     /// Constructs a validated `PreComputeArgs` instance by reading and validating environment variables.
     ///
+    /// This method collects all errors encountered during validation instead of failing on the first error,
+    /// allowing for complete error reporting and partial processing where possible.
+    ///
     /// # Environment Variables
     /// This method reads the following environment variables:
     /// - Required for all tasks:
-    ///   - `IEXEC_PRE_COMPUTE_OUT`: Output directory path
     ///   - `IEXEC_DATASET_REQUIRED`: Boolean ("true"/"false") indicating dataset requirement
     ///   - `IEXEC_INPUT_FILES_NUMBER`: Number of input files to load
     ///   - `IEXEC_BULK_SLICE_SIZE`: Number of bulk datasets (0 means no bulk processing)
@@ -42,22 +44,22 @@ impl PreComputeArgs {
     ///   - `IEXEC_DATASET_#_KEY`: Dataset decryption key
     /// - Input file URLs (`IEXEC_INPUT_FILE_URL_1`, `IEXEC_INPUT_FILE_URL_2`, etc.)
     ///
-    /// # Errors
-    /// Returns `ReplicateStatusCause` error variants for:
-    /// - Missing required environment variables
-    /// - Invalid boolean values in `IEXEC_DATASET_REQUIRED`
-    /// - Invalid numeric format in `IEXEC_INPUT_FILES_NUMBER` or `IEXEC_BULK_SLICE_SIZE`
-    /// - Missing dataset parameters when required
-    /// - Missing input file URLs
-    /// - Missing bulk dataset parameters when bulk processing is enabled
+    /// # Returns
+    ///
+    /// Returns a tuple containing:
+    /// - `PreComputeArgs`: The constructed arguments (with `output_dir` set to empty string)
+    /// - `Vec<ReplicateStatusCause>`: A vector of all errors encountered (empty if successful)
     ///
     /// # Example
     ///
     /// ```rust
     /// use tee_worker_pre_compute::compute::pre_compute_args::PreComputeArgs;
     ///
-    /// // Typically called with task ID from execution context
-    /// let args = PreComputeArgs::read_args();
+    /// let (mut args, errors) = PreComputeArgs::read_args();
+    /// if !errors.is_empty() {
+    ///     eprintln!("Encountered {} error(s) while reading arguments", errors.len());
+    /// }
+    /// args.output_dir = "/path/to/output".to_string(); // Set output_dir separately
     /// ```
     pub fn read_args() -> (PreComputeArgs, Vec<ReplicateStatusCause>) {
         info!("Starting to read pre-compute arguments from environment variables");

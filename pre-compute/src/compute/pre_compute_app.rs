@@ -38,15 +38,19 @@ impl PreComputeAppTrait for PreComputeApp {
     /// Runs the complete pre-compute pipeline.
     ///
     /// This method orchestrates the entire pre-compute process:
-    /// 1. Reads configuration arguments
-    /// 2. Validates the output folder exists
-    /// 3. Downloads and decrypts the dataset (if required)
-    /// 4. Downloads all input files
+    /// 1. Reads the output directory from environment variable `IEXEC_PRE_COMPUTE_OUT`
+    /// 2. Reads and validates configuration arguments from environment variables
+    /// 3. Validates the output folder exists
+    /// 4. Downloads and decrypts all datasets (if required)
+    /// 5. Downloads all input files
+    ///
+    /// The method collects all errors encountered during execution and returns them together,
+    /// allowing partial completion when possible (e.g., if one dataset fails, others are still processed).
     ///
     /// # Returns
     ///
     /// - `Ok(())` if all operations completed successfully
-    /// - `Err(ReplicateStatusCause)` if any step failed
+    /// - `Err(Vec<ReplicateStatusCause>)` containing all errors encountered during execution
     ///
     /// # Example
     ///
@@ -123,18 +127,19 @@ impl PreComputeAppTrait for PreComputeApp {
     /// Downloads the input files listed in `pre_compute_args.input_files` to the specified `output_dir`.
     ///
     /// Each URL is hashed (SHA-256) to generate a unique local filename.
-    /// If any download fails, the function returns an error.
+    /// The method continues downloading all files even if some downloads fail.
+    ///
+    /// # Behavior
+    ///
+    /// - Downloads continue even when individual files fail
+    /// - Successfully downloaded files are saved with SHA-256 hashed filenames
+    /// - All download failures are collected and returned together
     ///
     /// # Returns
     ///
-    /// - `Ok(())` if all files are downloaded successfully.
-    /// - `Err(ReplicateStatusCause::PreComputeInputFileDownloadFailed(url))` if any file fails to download.
-    ///
-    /// # Panics
-    ///
-    /// This function panics if:
-    /// - `pre_compute_args` is `None`.
-    /// - `chain_task_id` is `None`.
+    /// - `Ok(())` if all files are downloaded successfully
+    /// - `Err(Vec<ReplicateStatusCause>)` containing a `PreComputeInputFileDownloadFailed` error
+    ///   for each file that failed to download
     fn download_input_files(&self) -> Result<(), Vec<ReplicateStatusCause>> {
         let mut exit_causes: Vec<ReplicateStatusCause> = Vec::new();
         let args = &self.pre_compute_args;
