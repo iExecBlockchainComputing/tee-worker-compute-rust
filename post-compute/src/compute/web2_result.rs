@@ -682,7 +682,7 @@ mod tests {
             .expect_zip_iexec_out()
             .with(eq("/iexec_out"), function(|path: &str| !path.is_empty()))
             .times(1)
-            .returning(|_, path| Ok(format!("{}/iexec_out.zip", path)));
+            .returning(|_, path| Ok(format!("{path}/iexec_out.zip")));
 
         web2_result_mock
             .expect_eventually_encrypt_result()
@@ -754,7 +754,7 @@ mod tests {
             .expect_zip_iexec_out()
             .with(eq("/iexec_out"), function(|path: &str| !path.is_empty()))
             .times(1)
-            .returning(|_, path| Ok(format!("{}/iexec_out.zip", path)));
+            .returning(|_, path| Ok(format!("{path}/iexec_out.zip")));
 
         web2_result_mock
             .expect_eventually_encrypt_result()
@@ -780,7 +780,7 @@ mod tests {
 
         web2_result_mock
             .expect_zip_iexec_out()
-            .returning(|_, path| Ok(format!("{}/iexec_out.zip", path)));
+            .returning(|_, path| Ok(format!("{path}/iexec_out.zip")));
 
         web2_result_mock
             .expect_eventually_encrypt_result()
