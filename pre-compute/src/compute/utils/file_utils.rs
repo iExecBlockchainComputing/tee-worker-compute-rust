@@ -54,7 +54,7 @@ pub fn write_file(content: &[u8], file_path: &Path, context: &str) -> Result<(),
 ///
 /// If the download or any file operation fails, the function logs an appropriate error
 /// and returns `None`. It also ensures the parent directory exists, creating it if necessary.
-/// If the directory is newly created but the file write fails, it is cleaned up (deleted).
+/// If the file write fails and a partial file was created, it will be cleaned up (deleted).
 ///
 /// # Arguments
 ///
@@ -115,24 +115,24 @@ pub fn download_file(url: &str, parent_dir: &str, filename: &str) -> Option<Path
 
     let file_path = parent_path.join(filename);
 
-    if write_file(&bytes, &file_path, &format!("url:{url}")).is_ok() {
-        Some(file_path)
-    } else {
-        if file_path.exists() {
-            match fs::remove_file(&file_path) {
-                Ok(_) => {
-                    info!("File deleted [path:{}]", file_path.display());
-                }
-                Err(e) => {
-                    error!(
-                        "Failed to delete file [path:{}, error:{}]",
-                        file_path.display(),
-                        e
-                    );
+    match write_file(&bytes, &file_path, &format!("url:{url}")) {
+        Ok(_) => Some(file_path),
+        Err(_) => {
+            if file_path.exists() {
+                match fs::remove_file(&file_path) {
+                    Ok(_) => {
+                        info!("File deleted [path:{}]", file_path.display());
+                    }
+                    Err(e) => {
+                        error!(
+                            "Failed to delete file [path:{}, error:{e}]",
+                            file_path.display()
+                        );
+                    }
                 }
             }
+            None
         }
-        None
     }
 }
 
@@ -315,7 +315,7 @@ mod tests {
 
     #[test]
     #[cfg(unix)]
-    fn test_download_fails_on_file_write_error_preserves_parent() {
+    fn download_from_url_fails_and_preserves_parent_dir_when_file_write_error() {
         use std::os::unix::fs::PermissionsExt;
         let (_container, container_url) = start_container();
 
@@ -337,7 +337,7 @@ mod tests {
 
     #[test]
     #[cfg(unix)]
-    fn test_file_deleted_when_write_fails_with_existing_parent() {
+    fn download_from_url_fails_and_file_deleted_when_write_partialy_fails() {
         use std::os::unix::fs::PermissionsExt;
         let (_container, container_url) = start_container();
 
