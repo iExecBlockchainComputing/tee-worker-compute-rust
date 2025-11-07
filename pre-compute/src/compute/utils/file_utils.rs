@@ -118,15 +118,16 @@ pub fn download_file(url: &str, parent_dir: &str, filename: &str) -> Option<Path
     if write_file(&bytes, &file_path, &format!("url:{url}")).is_ok() {
         Some(file_path)
     } else {
-        if !parent_existed {
-            match fs::remove_dir_all(parent_path) {
+        if file_path.exists() {
+            match fs::remove_file(&file_path) {
                 Ok(_) => {
-                    info!("Folder deleted [path:{}]", parent_path.display());
+                    info!("File deleted [path:{}]", file_path.display());
                 }
-                Err(_) => {
+                Err(e) => {
                     error!(
-                        "Folder does not exist, nothing to delete [path:{}]",
-                        parent_path.display()
+                        "Failed to delete file [path:{}, error:{}]",
+                        file_path.display(),
+                        e
                     );
                 }
             }
@@ -310,6 +311,52 @@ mod tests {
     fn test_download_from_url_with_invalid_url() {
         let result = download_from_url("not-a-valid-url");
         assert!(result.is_none());
+    }
+        
+    #[test]
+    #[cfg(unix)]
+    fn test_download_fails_on_file_write_error_preserves_parent() {
+        use std::os::unix::fs::PermissionsExt;
+        let (_container, container_url) = start_container();
+
+        let temp_dir = TempDir::new().unwrap();
+        let nested_path = temp_dir.path().join("new_dir");
+        
+        // Create the directory and make it read-only to prevent file creation
+        fs::create_dir_all(&nested_path).unwrap();
+        let mut perms = fs::metadata(&nested_path).unwrap().permissions();
+        perms.set_mode(0o555);
+        fs::set_permissions(&nested_path, perms).unwrap();
+
+        let result = download_file(&container_url, nested_path.to_str().unwrap(), "test.json");
+
+        // Download should fail due to inability to write file and Parent directory should still exist
+        assert!(result.is_none());
+        assert!(nested_path.exists());
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn test_file_deleted_when_write_fails_with_existing_parent() {
+        use std::os::unix::fs::PermissionsExt;
+        let (_container, container_url) = start_container();
+
+        let temp_dir = TempDir::new().unwrap();
+        let parent_path = temp_dir.path();
+        let file_path = parent_path.join("test.json");
+        
+        // Pre-create a read-only file to force write failure
+        fs::write(&file_path, b"old content").unwrap();
+        let mut perms = fs::metadata(&file_path).unwrap().permissions();
+        perms.set_mode(0o444);
+        fs::set_permissions(&file_path, perms).unwrap();
+
+        let result = download_file(&container_url, parent_path.to_str().unwrap(), "test.json");
+        assert!(result.is_none());
+        
+        // Parent directory should still exist File should be deleted on cleanup
+        assert!(parent_path.exists());
+        assert!(!file_path.exists(), "File should have been cleaned up after write failure");
     }
 
     #[test]
