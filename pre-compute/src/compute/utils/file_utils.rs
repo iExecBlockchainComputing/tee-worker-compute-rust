@@ -45,6 +45,19 @@ pub fn write_file(content: &[u8], file_path: &Path, context: &str) -> Result<(),
                 "Failed to write file [{context}, path:{}]",
                 file_path.display()
             );
+            if file_path.exists() {
+                match fs::remove_file(file_path) {
+                    Ok(_) => {
+                        info!("File deleted [path:{}]", file_path.display());
+                    }
+                    Err(e) => {
+                        error!(
+                            "Failed to delete file [path:{}, error:{e}]",
+                            file_path.display()
+                        );
+                    }
+                }
+            }
             Err(e)
         }
     }
@@ -118,19 +131,6 @@ pub fn download_file(url: &str, parent_dir: &str, filename: &str) -> Option<Path
     match write_file(&bytes, &file_path, &format!("url:{url}")) {
         Ok(_) => Some(file_path),
         Err(_) => {
-            if file_path.exists() {
-                match fs::remove_file(&file_path) {
-                    Ok(_) => {
-                        info!("File deleted [path:{}]", file_path.display());
-                    }
-                    Err(e) => {
-                        error!(
-                            "Failed to delete file [path:{}, error:{e}]",
-                            file_path.display()
-                        );
-                    }
-                }
-            }
             None
         }
     }
