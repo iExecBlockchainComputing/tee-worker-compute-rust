@@ -312,7 +312,7 @@ mod tests {
         let result = download_from_url("not-a-valid-url");
         assert!(result.is_none());
     }
-        
+
     #[test]
     #[cfg(unix)]
     fn test_download_fails_on_file_write_error_preserves_parent() {
@@ -321,7 +321,7 @@ mod tests {
 
         let temp_dir = TempDir::new().unwrap();
         let nested_path = temp_dir.path().join("new_dir");
-        
+
         // Create the directory and make it read-only to prevent file creation
         fs::create_dir_all(&nested_path).unwrap();
         let mut perms = fs::metadata(&nested_path).unwrap().permissions();
@@ -330,7 +330,7 @@ mod tests {
 
         let result = download_file(&container_url, nested_path.to_str().unwrap(), "test.json");
 
-        // Download should fail due to inability to write file and Parent directory should still exist
+        // Download should fail due to inability to write file. Parent directory should still exist
         assert!(result.is_none());
         assert!(nested_path.exists());
     }
@@ -344,7 +344,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let parent_path = temp_dir.path();
         let file_path = parent_path.join("test.json");
-        
+
         // Pre-create a read-only file to force write failure
         fs::write(&file_path, b"old content").unwrap();
         let mut perms = fs::metadata(&file_path).unwrap().permissions();
@@ -353,10 +353,13 @@ mod tests {
 
         let result = download_file(&container_url, parent_path.to_str().unwrap(), "test.json");
         assert!(result.is_none());
-        
-        // Parent directory should still exist File should be deleted on cleanup
+
+        // Parent directory should still exist. File should be deleted on cleanup
         assert!(parent_path.exists());
-        assert!(!file_path.exists(), "File should have been cleaned up after write failure");
+        assert!(
+            !file_path.exists(),
+            "File should have been cleaned up after write failure"
+        );
     }
 
     #[test]
