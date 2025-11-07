@@ -15,10 +15,10 @@ use std::{
     io::{self, Write},
     path::{Path, PathBuf},
 };
+use tempfile::TempDir;
 use walkdir::WalkDir;
 use zip::{ZipWriter, write::FileOptions};
 
-const SLASH_POST_COMPUTE_TMP: &str = "/post-compute-tmp";
 const RESULT_FILE_NAME_MAX_LENGTH: usize = 31;
 const IPFS_RESULT_STORAGE_PROVIDER: &str = "ipfs";
 const DROPBOX_RESULT_STORAGE_PROVIDER: &str = "dropbox";
@@ -225,6 +225,10 @@ impl Web2ResultInterface for Web2ResultService {
     /// The method name maintains compatibility with the Java implementation, though
     /// encryption is not yet implemented.
     ///
+    /// The method creates a temporary directory for intermediate files (zip archive and
+    /// encrypted files if encryption is enabled). The temporary directory is automatically
+    /// cleaned up when the function completes, whether successfully or with an error.
+    ///
     /// # Arguments
     ///
     /// * `computed_file` - The [`ComputedFile`] containing task information and metadata
@@ -247,23 +251,28 @@ impl Web2ResultInterface for Web2ResultService {
         // check result file names are not too long
         self.check_result_files_name(computed_file.task_id.as_ref().unwrap(), "/iexec_out")?;
 
-        // save zip file to the protected region /post-compute-tmp (temporarily)
-        let zip_path = match self.zip_iexec_out("/iexec_out", SLASH_POST_COMPUTE_TMP) {
-            Ok(path) => path,
-            Err(..) => {
-                error!("zipIexecOut stage failed");
-                return Err(ReplicateStatusCause::PostComputeOutFolderZipFailed);
-            }
-        };
+        // Create a temporary directory for the zip file
+        let temp_dir = TempDir::new().map_err(|e| {
+            error!("Failed to create temporary directory: {e}");
+            ReplicateStatusCause::PostComputeOutFolderZipFailed
+        })?;
+
+        // Get the path as a string - to_str() returns Option<&str>
+        let temp_dir_path = temp_dir.path().to_str().ok_or_else(|| {
+            error!("Failed to convert temporary directory path to string");
+            ReplicateStatusCause::PostComputeOutFolderZipFailed
+        })?;
+
+        // save zip file to the temporary directory
+        let zip_path = self
+            .zip_iexec_out("/iexec_out", temp_dir_path)
+            .map_err(|e| {
+                error!("zipIexecOut stage failed: {e}");
+                ReplicateStatusCause::PostComputeOutFolderZipFailed
+            })?;
 
         let result_path = self.eventually_encrypt_result(&zip_path)?;
         self.upload_result(computed_file, &result_path)?; //TODO Share result link to beneficiary
-
-        // Clean up the temporary zip file
-        if let Err(e) = fs::remove_file(&zip_path) {
-            error!("Failed to remove temporary zip file {zip_path}: {e}");
-            // We don't return an error here as the upload was successful
-        };
 
         Ok(())
     }
@@ -640,7 +649,12 @@ mod tests {
         computed_file: &ComputedFile,
     ) -> Result<(), ReplicateStatusCause> {
         service.check_result_files_name(computed_file.task_id.as_ref().unwrap(), "/iexec_out")?;
-        let zip_path = match service.zip_iexec_out("/iexec_out", SLASH_POST_COMPUTE_TMP) {
+        let temp_dir = TempDir::new().map_err(|e| {
+            error!("Failed to create temporary directory: {e}");
+            ReplicateStatusCause::PostComputeOutFolderZipFailed
+        })?;
+        let zip_path = match service.zip_iexec_out("/iexec_out", temp_dir.path().to_str().unwrap())
+        {
             Ok(path) => path,
             Err(..) => {
                 error!("zipIexecOut stage failed");
@@ -649,6 +663,7 @@ mod tests {
         };
         let result_path = service.eventually_encrypt_result(&zip_path)?;
         service.upload_result(computed_file, &result_path)?;
+        drop(temp_dir);
         Ok(())
     }
 
@@ -656,7 +671,6 @@ mod tests {
     fn encrypt_and_upload_result_completes_successfully_when_all_operations_succeed() {
         let mut web2_result_mock = MockWeb2ResultInterface::new();
         let computed_file = create_test_computed_file("0x123");
-        let zip_path = "/post-compute-tmp/iexec_out.zip";
 
         web2_result_mock
             .expect_check_result_files_name()
@@ -666,19 +680,22 @@ mod tests {
 
         web2_result_mock
             .expect_zip_iexec_out()
-            .with(eq("/iexec_out"), eq(SLASH_POST_COMPUTE_TMP))
+            .with(eq("/iexec_out"), function(|path: &str| !path.is_empty()))
             .times(1)
-            .returning(move |_, _| Ok(String::from(zip_path)));
+            .returning(|_, path| Ok(format!("{path}/iexec_out.zip")));
 
         web2_result_mock
             .expect_eventually_encrypt_result()
-            .with(eq(zip_path))
+            .with(function(|path: &str| path.ends_with("iexec_out.zip")))
             .times(1)
-            .returning(|_| Ok(String::from("/post-compute-tmp/iexec_out.zip")));
+            .returning(|path| Ok(path.to_string()));
 
         web2_result_mock
             .expect_upload_result()
-            .with(eq(computed_file.clone()), eq(zip_path))
+            .with(
+                eq(computed_file.clone()),
+                function(|path: &str| path.ends_with("iexec_out.zip")),
+            )
             .times(1)
             .returning(|_, _| Ok(String::from("https://ipfs.io/ipfs/QmHash")));
 
@@ -726,7 +743,6 @@ mod tests {
     fn encrypt_and_upload_result_returns_error_when_encryption_returns_error() {
         let mut web2_result_mock = MockWeb2ResultInterface::new();
         let computed_file = create_test_computed_file("0x123");
-        let zip_path = "/post-compute-tmp/iexec_out.zip";
 
         web2_result_mock
             .expect_check_result_files_name()
@@ -736,13 +752,13 @@ mod tests {
 
         web2_result_mock
             .expect_zip_iexec_out()
-            .with(eq("/iexec_out"), eq(SLASH_POST_COMPUTE_TMP))
+            .with(eq("/iexec_out"), function(|path: &str| !path.is_empty()))
             .times(1)
-            .returning(move |_, _| Ok(String::from(zip_path)));
+            .returning(|_, path| Ok(format!("{path}/iexec_out.zip")));
 
         web2_result_mock
             .expect_eventually_encrypt_result()
-            .with(eq(zip_path))
+            .with(function(|path: &str| path.ends_with("iexec_out.zip")))
             .times(1)
             .returning(|_| Err(ReplicateStatusCause::PostComputeEncryptionFailed));
 
@@ -757,7 +773,6 @@ mod tests {
     fn encrypt_and_upload_result_returns_error_when_upload_fails() {
         let mut web2_result_mock = MockWeb2ResultInterface::new();
         let computed_file = create_test_computed_file("0x123");
-        let zip_path = "/post-compute-tmp/iexec_out.zip";
 
         web2_result_mock
             .expect_check_result_files_name()
@@ -765,13 +780,13 @@ mod tests {
 
         web2_result_mock
             .expect_zip_iexec_out()
-            .returning(move |_, _| Ok(String::from(zip_path)));
+            .returning(|_, path| Ok(format!("{path}/iexec_out.zip")));
 
         web2_result_mock
             .expect_eventually_encrypt_result()
-            .with(eq(zip_path))
+            .with(function(|path: &str| path.ends_with("iexec_out.zip")))
             .times(1)
-            .returning(move |_| Ok(String::from("/post-compute-tmp/iexec_out.zip")));
+            .returning(|path| Ok(path.to_string()));
 
         web2_result_mock
             .expect_upload_result()
