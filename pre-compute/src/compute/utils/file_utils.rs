@@ -45,6 +45,19 @@ pub fn write_file(content: &[u8], file_path: &Path, context: &str) -> Result<(),
                 "Failed to write file [{context}, path:{}]",
                 file_path.display()
             );
+            if file_path.exists() {
+                match fs::remove_file(file_path) {
+                    Ok(_) => {
+                        info!("File deleted [path:{}]", file_path.display());
+                    }
+                    Err(e) => {
+                        error!(
+                            "Failed to delete file [path:{}, error:{e}]",
+                            file_path.display()
+                        );
+                    }
+                }
+            }
             Err(e)
         }
     }
@@ -54,7 +67,7 @@ pub fn write_file(content: &[u8], file_path: &Path, context: &str) -> Result<(),
 ///
 /// If the download or any file operation fails, the function logs an appropriate error
 /// and returns `None`. It also ensures the parent directory exists, creating it if necessary.
-/// If the directory is newly created but the file write fails, it is cleaned up (deleted).
+/// If the file write fails and a partial file was created, it will be cleaned up (deleted).
 ///
 /// # Arguments
 ///
@@ -115,23 +128,9 @@ pub fn download_file(url: &str, parent_dir: &str, filename: &str) -> Option<Path
 
     let file_path = parent_path.join(filename);
 
-    if write_file(&bytes, &file_path, &format!("url:{url}")).is_ok() {
-        Some(file_path)
-    } else {
-        if !parent_existed {
-            match fs::remove_dir_all(parent_path) {
-                Ok(_) => {
-                    info!("Folder deleted [path:{}]", parent_path.display());
-                }
-                Err(_) => {
-                    error!(
-                        "Folder does not exist, nothing to delete [path:{}]",
-                        parent_path.display()
-                    );
-                }
-            }
-        }
-        None
+    match write_file(&bytes, &file_path, &format!("url:{url}")) {
+        Ok(_) => Some(file_path),
+        Err(_) => None,
     }
 }
 
@@ -310,6 +309,55 @@ mod tests {
     fn test_download_from_url_with_invalid_url() {
         let result = download_from_url("not-a-valid-url");
         assert!(result.is_none());
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn download_from_url_fails_and_preserves_parent_dir_when_file_write_error() {
+        use std::os::unix::fs::PermissionsExt;
+        let (_container, container_url) = start_container();
+
+        let temp_dir = TempDir::new().unwrap();
+        let nested_path = temp_dir.path().join("new_dir");
+
+        // Create the directory and make it read-only to prevent file creation
+        fs::create_dir_all(&nested_path).unwrap();
+        let mut perms = fs::metadata(&nested_path).unwrap().permissions();
+        perms.set_mode(0o555);
+        fs::set_permissions(&nested_path, perms).unwrap();
+
+        let result = download_file(&container_url, nested_path.to_str().unwrap(), "test.json");
+
+        // Download should fail due to inability to write file. Parent directory should still exist
+        assert!(result.is_none());
+        assert!(nested_path.exists());
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn download_from_url_fails_and_file_deleted_when_write_partialy_fails() {
+        use std::os::unix::fs::PermissionsExt;
+        let (_container, container_url) = start_container();
+
+        let temp_dir = TempDir::new().unwrap();
+        let parent_path = temp_dir.path();
+        let file_path = parent_path.join("test.json");
+
+        // Pre-create a read-only file to force write failure
+        fs::write(&file_path, b"old content").unwrap();
+        let mut perms = fs::metadata(&file_path).unwrap().permissions();
+        perms.set_mode(0o444);
+        fs::set_permissions(&file_path, perms).unwrap();
+
+        let result = download_file(&container_url, parent_path.to_str().unwrap(), "test.json");
+        assert!(result.is_none());
+
+        // Parent directory should still exist. File should be deleted on cleanup
+        assert!(parent_path.exists());
+        assert!(
+            !file_path.exists(),
+            "File should have been cleaned up after write failure"
+        );
     }
 
     #[test]
