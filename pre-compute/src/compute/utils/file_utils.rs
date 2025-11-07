@@ -130,9 +130,7 @@ pub fn download_file(url: &str, parent_dir: &str, filename: &str) -> Option<Path
 
     match write_file(&bytes, &file_path, &format!("url:{url}")) {
         Ok(_) => Some(file_path),
-        Err(_) => {
-            None
-        }
+        Err(_) => None,
     }
 }
 
