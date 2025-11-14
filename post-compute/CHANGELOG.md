@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.0](https://github.com/iExecBlockchainComputing/tee-worker-compute-rust/compare/tee-worker-post-compute-v0.2.0...tee-worker-post-compute-v0.3.0) (2025-11-07)
+
+
+### Features
+
+* return list of errors in new format to worker ([#22](https://github.com/iExecBlockchainComputing/tee-worker-compute-rust/issues/22)) ([4f8051a](https://github.com/iExecBlockchainComputing/tee-worker-compute-rust/commit/4f8051a2e475dec17f21100923f6eb4145c9a151))
+* use temporary directory for zip file handling ([#26](https://github.com/iExecBlockchainComputing/tee-worker-compute-rust/issues/26)) ([f7624d2](https://github.com/iExecBlockchainComputing/tee-worker-compute-rust/commit/f7624d254e5afeda27214f103ed81339ca75197f))
+
 ## [0.2.0](https://github.com/iExecBlockchainComputing/tee-worker-compute-rust/compare/tee-worker-post-compute-v0.1.0...tee-worker-post-compute-v0.2.0) (2025-09-19)
 
 
