@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-and-test:
-    uses: iExecBlockchainComputing/github-actions-workflows/.github/workflows/rust-build.yml@rust-build-v2.0.0
+    uses: iExecBlockchainComputing/github-actions-workflows/.github/workflows/rust-build.yml@rust-build-v2.1.0
     with:
       rust-version: '1.88.0'
       working-directory: "."
@@ -51,7 +51,7 @@ jobs:
     strategy:
       matrix:
         package: [post-compute, pre-compute]
-    uses: iExecBlockchainComputing/github-actions-workflows/.github/workflows/docker-build.yml@docker-build-v2.4.0
+    uses: iExecBlockchainComputing/github-actions-workflows/.github/workflows/docker-build.yml@docker-build-v3.3.0
     with:
       image-name: docker-regis.iex.ec/tee-worker-${{ matrix.package }}-rust
       image-tag: ${{ needs.prepare.outputs.image_tag }}
@@ -62,7 +62,9 @@ jobs:
       security-scan: true
       security-report: "sarif"
       hadolint: true
-      platforms: linux/amd64
+      platform: linux/amd64
     secrets:
+      dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+      dockerhub-password: ${{ secrets.DOCKERHUB_TOKEN_PULL_ONLY }}
       username: ${{ secrets.NEXUS_USERNAME }}
       password: ${{ secrets.NEXUS_PASSWORD }}
