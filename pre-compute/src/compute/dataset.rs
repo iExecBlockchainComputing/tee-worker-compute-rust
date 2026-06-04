@@ -13,7 +13,7 @@ use std::str::FromStr;
 
 type Aes256CbcDec = Decryptor<Aes256>;
 const IPFS_GATEWAYS: &[&str] = &[
-    "https://ipfs-gateway.v8-bellecour.iex.ec",
+    "https://ipfs.iex.ec",
     "https://gateway.ipfs.io",
     "https://gateway.pinata.cloud",
 ];
