@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.1](https://github.com/iExecBlockchainComputing/tee-worker-compute-rust/compare/tee-worker-pre-compute-v0.4.0...tee-worker-pre-compute-v0.4.1) (2026-06-04)
+
+
+### Bug Fixes
+
+* **pre-compute:** update IPFS internal URL to ipfs.iex.ec ([#31](https://github.com/iExecBlockchainComputing/tee-worker-compute-rust/issues/31)) ([f5a0909](https://github.com/iExecBlockchainComputing/tee-worker-compute-rust/commit/f5a09097ed647c6ff0f98f5fbe898e6beaa01e91))
+* remove sconification steps ([#28](https://github.com/iExecBlockchainComputing/tee-worker-compute-rust/issues/28)) ([271248e](https://github.com/iExecBlockchainComputing/tee-worker-compute-rust/commit/271248e29a90c29171e9f7cad36e9123ca1a8239))
+
 ## [0.4.0](https://github.com/iExecBlockchainComputing/tee-worker-compute-rust/compare/tee-worker-pre-compute-v0.3.0...tee-worker-pre-compute-v0.4.0) (2025-11-14)
 
 
