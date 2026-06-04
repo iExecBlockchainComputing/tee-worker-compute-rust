@@ -20,10 +20,11 @@ jobs:
     needs: build-and-test
     runs-on: ubuntu-latest
     if: |
-      github.ref_name == 'main' ||
+      github.repository_owner == 'iExecBlockchainComputing' &&
+      (github.ref_name == 'main' ||
       startsWith(github.head_ref, 'feat/') ||
       startsWith(github.head_ref, 'fix/') ||
-      (github.event_name == 'workflow_dispatch' && (startsWith(github.ref_name, 'feat/') || startsWith(github.ref_name, 'fix/')))
+      (github.event_name == 'workflow_dispatch' && (startsWith(github.ref_name, 'feat/') || startsWith(github.ref_name, 'fix/'))))
     outputs:
       image_tag: ${{ steps.determine-tag.outputs.image_tag }}
     steps:

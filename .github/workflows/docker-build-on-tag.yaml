@@ -10,6 +10,8 @@ jobs:
   prepare:
     name: Determine image tag
     runs-on: ubuntu-latest
+    # Prevent execution on forks
+    if: github.repository_owner == 'iExecBlockchainComputing'
     outputs:
       dockerfile: ${{ steps.determine-tag.outputs.dockerfile }}
       image_name: ${{ steps.determine-tag.outputs.image_name }}
@@ -55,7 +57,7 @@ jobs:
   build-oci-image:
     name: Build OCI image
     needs: prepare
-    uses: iExecBlockchainComputing/github-actions-workflows/.github/workflows/docker-build.yml@docker-build-v2.4.0
+    uses: iExecBlockchainComputing/github-actions-workflows/.github/workflows/docker-build.yml@docker-build-v3.3.0
     with:
       image-name: docker-regis.iex.ec/${{ needs.prepare.outputs.image_name }}
       image-tag: ${{ needs.prepare.outputs.image_tag }}
@@ -66,7 +68,9 @@ jobs:
       security-scan: true
       security-report: "sarif"
       hadolint: true
-      platforms: linux/amd64
+      platform: linux/amd64
     secrets:
+      dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+      dockerhub-password: ${{ secrets.DOCKERHUB_TOKEN_PULL_ONLY }}
       username: ${{ secrets.NEXUS_USERNAME }}
       password: ${{ secrets.NEXUS_PASSWORD }}
