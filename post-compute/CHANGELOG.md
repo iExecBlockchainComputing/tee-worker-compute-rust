@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/iExecBlockchainComputing/tee-worker-compute-rust/compare/tee-worker-post-compute-v0.3.0...tee-worker-post-compute-v0.3.1) (2026-06-04)
+
+
+### Bug Fixes
+
+* remove sconification steps ([#28](https://github.com/iExecBlockchainComputing/tee-worker-compute-rust/issues/28)) ([271248e](https://github.com/iExecBlockchainComputing/tee-worker-compute-rust/commit/271248e29a90c29171e9f7cad36e9123ca1a8239))
+
 ## [0.3.0](https://github.com/iExecBlockchainComputing/tee-worker-compute-rust/compare/tee-worker-post-compute-v0.2.0...tee-worker-post-compute-v0.3.0) (2025-11-07)
 
 
