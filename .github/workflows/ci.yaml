@@ -52,7 +52,7 @@ jobs:
     strategy:
       matrix:
         package: [post-compute, pre-compute]
-    uses: iExecBlockchainComputing/github-actions-workflows/.github/workflows/docker-build.yml@docker-build-v3.3.0
+    uses: iExecBlockchainComputing/github-actions-workflows/.github/workflows/docker-build.yml@docker-build-v3.4.0
     with:
       image-name: docker-regis.iex.ec/tee-worker-${{ matrix.package }}-rust
       image-tag: ${{ needs.prepare.outputs.image_tag }}
