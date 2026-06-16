@@ -16,6 +16,8 @@ FROM alpine:3.22
 # Set working directory
 WORKDIR /app
 
+RUN apk --no-cache upgrade
+
 # Copy the binary from builder stage
 COPY --from=builder /app/target/release/tee-worker-post-compute .
 
