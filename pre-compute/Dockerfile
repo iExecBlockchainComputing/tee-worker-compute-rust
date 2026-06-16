@@ -1,7 +1,7 @@
 FROM rust:1.88-alpine3.22 AS builder
 
 # Install build dependencies with pinned versions
-RUN apk add --no-cache musl-dev=1.2.5-r12 openssl-dev=3.5.6-r0 openssl-libs-static=3.5.6-r0
+RUN apk add --no-cache musl-dev=1.2.5-r12 openssl-dev=3.5.7-r0 openssl-libs-static=3.5.7-r0
 
 WORKDIR /app
 
@@ -15,6 +15,8 @@ FROM alpine:3.22
 
 # Set working directory
 WORKDIR /app
+
+RUN apk --no-cache upgrade
 
 # Copy the binary from builder stage
 COPY --from=builder /app/target/release/tee-worker-pre-compute .

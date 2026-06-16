@@ -57,7 +57,8 @@ jobs:
   build-oci-image:
     name: Build OCI image
     needs: prepare
-    uses: iExecBlockchainComputing/github-actions-workflows/.github/workflows/docker-build.yml@docker-build-v3.3.0
+    # docker-build-v3.4.0
+    uses: iExecBlockchainComputing/github-actions-workflows/.github/workflows/docker-build.yml@2124e2240bb2cf0254e8308c3d13c75bb524de06
     with:
       image-name: docker-regis.iex.ec/${{ needs.prepare.outputs.image_name }}
       image-tag: ${{ needs.prepare.outputs.image_tag }}
