@@ -56,7 +56,7 @@ impl ResultProxyApiClient {
     ///
     /// # Arguments
     ///
-    /// * `base_url` - The base URL of the result proxy service (e.g., "<https://result.v8-bellecour.iex.ec>")
+    /// * `base_url` - The base URL of the result proxy service (e.g., "<https://result-tdx.arbitrum-sepolia-testnet.iex.ec>")
     ///
     /// # Returns
     ///
@@ -67,7 +67,7 @@ impl ResultProxyApiClient {
     /// ```rust
     /// use tee_worker_post_compute::api::result_proxy_api_client::ResultProxyApiClient;
     ///
-    /// let client = ResultProxyApiClient::new("https://result.v8-bellecour.iex.ec");
+    /// let client = ResultProxyApiClient::new("https://result-tdx.arbitrum-sepolia-testnet.iex.ec");
     /// ```
     pub fn new(base_url: &str) -> Self {
         Self {
