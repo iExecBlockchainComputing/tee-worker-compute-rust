@@ -233,11 +233,6 @@ pub fn encrypt_data(
 /// cryptographically secure random number generator (`OsRng`). Each call
 /// produces a unique key suitable for encrypting sensitive data.
 ///
-/// # Returns
-///
-/// * `Result<Vec<u8>, ReplicateStatusCause>` - On success, returns `AES_KEY_LENGTH` bytes
-///   vector containing the AES-256 key. On failure, returns `PostComputeEncryptionFailed`.
-///
 /// # Security
 ///
 /// - Uses `OsRng` which provides cryptographically secure randomness
@@ -271,7 +266,7 @@ pub fn generate_aes_key() -> Result<[u8; AES_KEY_LENGTH], ReplicateStatusCause> 
 ///
 /// # Process
 ///
-/// 1. Validates input data and key length
+/// 1. Validates input data is not empty
 /// 2. Generates a random 128-bit IV using `OsRng`
 /// 3. Encrypts data using AES-256-CBC with PKCS#7 padding
 /// 4. Prepends IV to ciphertext for later decryption
@@ -279,7 +274,7 @@ pub fn generate_aes_key() -> Result<[u8; AES_KEY_LENGTH], ReplicateStatusCause> 
 /// # Arguments
 ///
 /// * `data` - The plaintext data to encrypt. Must not be empty.
-/// * `key` - The AES-256 key, whose length will be validated.
+/// * `key` - The AES-256 key.
 ///
 /// # Returns
 ///
