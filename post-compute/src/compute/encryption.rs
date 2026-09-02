@@ -233,11 +233,6 @@ pub fn encrypt_data(
 /// cryptographically secure random number generator (`OsRng`). Each call
 /// produces a unique key suitable for encrypting sensitive data.
 ///
-/// # Returns
-///
-/// * `Result<Vec<u8>, ReplicateStatusCause>` - On success, returns `AES_KEY_LENGTH` bytes
-///   vector containing the AES-256 key. On failure, returns `PostComputeEncryptionFailed`.
-///
 /// # Security
 ///
 /// - Uses `OsRng` which provides cryptographically secure randomness
@@ -252,13 +247,13 @@ pub fn encrypt_data(
 /// # Note
 ///
 /// This is an internal helper method used by the public [`encrypt_data`] function.
-pub fn generate_aes_key() -> Result<Vec<u8>, ReplicateStatusCause> {
+pub fn generate_aes_key() -> Result<[u8; AES_KEY_LENGTH], ReplicateStatusCause> {
     let mut key_bytes = [0u8; AES_KEY_LENGTH];
     if let Err(e) = OsRng.try_fill_bytes(&mut key_bytes) {
         error!("Failed to generate AES key: {e}");
         return Err(ReplicateStatusCause::PostComputeEncryptionFailed);
     }
-    Ok(key_bytes.to_vec())
+    Ok(key_bytes)
 }
 
 /// Encrypts data using AES-256 in CBC mode with PKCS#7 padding.
@@ -271,7 +266,7 @@ pub fn generate_aes_key() -> Result<Vec<u8>, ReplicateStatusCause> {
 ///
 /// # Process
 ///
-/// 1. Validates input data and key length
+/// 1. Validates input data is not empty
 /// 2. Generates a random 128-bit IV using `OsRng`
 /// 3. Encrypts data using AES-256-CBC with PKCS#7 padding
 /// 4. Prepends IV to ciphertext for later decryption
@@ -279,7 +274,7 @@ pub fn generate_aes_key() -> Result<Vec<u8>, ReplicateStatusCause> {
 /// # Arguments
 ///
 /// * `data` - The plaintext data to encrypt. Must not be empty.
-/// * `key` - The AES-256 key, whose length will be validated.
+/// * `key` - The AES-256 key.
 ///
 /// # Returns
 ///
@@ -306,23 +301,18 @@ pub fn generate_aes_key() -> Result<Vec<u8>, ReplicateStatusCause> {
 ///
 /// * `PostComputeEncryptionFailed` - If:
 ///   - Input data is empty
-///   - Key is not exactly `AES_KEY_LENGTH` bytes
 ///   - Random number generation fails
 ///   - Encryption operation fails
 ///
 /// # Note
 ///
 /// This is an internal helper method used by the public [`encrypt_data`] function.
-pub fn aes_encrypt(data: &[u8], key: &[u8]) -> Result<Vec<u8>, ReplicateStatusCause> {
+pub fn aes_encrypt(
+    data: &[u8],
+    key: &[u8; AES_KEY_LENGTH],
+) -> Result<Vec<u8>, ReplicateStatusCause> {
     if data.is_empty() {
         error!("AES encryption input data is empty");
-        return Err(ReplicateStatusCause::PostComputeEncryptionFailed);
-    }
-    if key.len() != AES_KEY_LENGTH {
-        error!(
-            "AES encryption key must be {AES_KEY_LENGTH} bytes, got {}",
-            key.len()
-        );
         return Err(ReplicateStatusCause::PostComputeEncryptionFailed);
     }
 
@@ -789,18 +779,6 @@ FQIDAQAB
     }
 
     #[test]
-    fn aes_encrypt_returns_error_when_key_wrong_size() {
-        let data = b"test data";
-        let wrong_key = vec![0u8; 16]; // 16 bytes instead of 32
-
-        let result = aes_encrypt(data, &wrong_key);
-        assert_eq!(
-            result,
-            Err(ReplicateStatusCause::PostComputeEncryptionFailed)
-        );
-    }
-
-    #[test]
     fn aes_encrypt_returns_different_results_when_called_multiple_times() {
         let data = b"test data";
         let key = generate_aes_key().unwrap();
@@ -808,27 +786,6 @@ FQIDAQAB
         let encrypted1 = aes_encrypt(data, &key).unwrap();
         let encrypted2 = aes_encrypt(data, &key).unwrap();
         assert_ne!(encrypted1, encrypted2);
-    }
-
-    #[test]
-    fn aes_encrypt_returns_error_when_key_is_invalid_length() {
-        let data = b"Some data";
-        let short_key = b"shortkey"; // Not 32 bytes
-        let long_key = b"thisisaverylongkeythatisdefinitelymorethan32bytes"; // Not 32 bytes
-
-        let encrypted_result_short = aes_encrypt(data, short_key);
-        assert!(encrypted_result_short.is_err());
-        assert_eq!(
-            encrypted_result_short,
-            Err(ReplicateStatusCause::PostComputeEncryptionFailed)
-        );
-
-        let encrypted_result_long = aes_encrypt(data, long_key);
-        assert!(encrypted_result_long.is_err());
-        assert_eq!(
-            encrypted_result_long,
-            Err(ReplicateStatusCause::PostComputeEncryptionFailed)
-        );
     }
     // endregion
 
