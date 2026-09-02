@@ -301,7 +301,6 @@ pub fn generate_aes_key() -> Result<[u8; AES_KEY_LENGTH], ReplicateStatusCause> 
 ///
 /// * `PostComputeEncryptionFailed` - If:
 ///   - Input data is empty
-///   - Key is not exactly `AES_KEY_LENGTH` bytes
 ///   - Random number generation fails
 ///   - Encryption operation fails
 ///
