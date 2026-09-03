@@ -2,7 +2,7 @@ use crate::compute::errors::ReplicateStatusCause;
 use crate::compute::web2_result::{Web2ResultInterface, Web2ResultService};
 use aes::{
     Aes256,
-    cipher::{BlockEncryptMut, KeyIvInit, block_padding::Pkcs7},
+    cipher::{BlockModeEncrypt, KeyIvInit, block_padding::Pkcs7},
 };
 use cbc::Encryptor;
 use log::error;
@@ -325,7 +325,7 @@ pub fn aes_encrypt(
 
     // Perform AES-256-CBC encryption with PKCS#7 padding
     let cipher = Encryptor::<Aes256>::new(key.into(), &iv.into());
-    let ciphertext = cipher.encrypt_padded_vec_mut::<Pkcs7>(data);
+    let ciphertext = cipher.encrypt_padded_vec::<Pkcs7>(data);
 
     // Prepend IV to ciphertext
     let mut result = Vec::with_capacity(iv.len() + ciphertext.len());

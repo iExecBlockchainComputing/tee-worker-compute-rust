@@ -11,7 +11,7 @@ jobs:
     # rust-build-v2.1.0
     uses: iExecBlockchainComputing/github-actions-workflows/.github/workflows/rust-build.yml@5036190d3796e0de636fd5dddd58bebcac0e261a
     with:
-      rust-version: '1.88.0'
+      rust-version: '1.98.0'
       working-directory: "."
       enable-cache: true
       publish-crates-io: false

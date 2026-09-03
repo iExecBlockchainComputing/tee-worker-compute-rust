@@ -5,7 +5,7 @@ use aes::Aes256;
 use base64::{Engine as _, engine::general_purpose};
 use cbc::{
     Decryptor,
-    cipher::{BlockDecryptMut, KeyIvInit, block_padding::Pkcs7},
+    cipher::{BlockModeDecrypt, KeyIvInit, block_padding::Pkcs7},
 };
 use log::{error, info};
 use multiaddr::Multiaddr;
@@ -121,18 +121,25 @@ impl Dataset {
             ReplicateStatusCause::PreComputeDatasetDecryptionFailed(self.filename.clone())
         })?;
 
-        if encrypted_content.len() < AES_IV_LENGTH || key.len() != AES_KEY_LENGTH {
+        if encrypted_content.len() < AES_IV_LENGTH {
             return Err(ReplicateStatusCause::PreComputeDatasetDecryptionFailed(
                 self.filename.clone(),
             ));
         }
 
-        let key_slice = &key[..AES_KEY_LENGTH];
-        let iv_slice = &encrypted_content[..AES_IV_LENGTH];
+        let key_slice: &[u8; AES_KEY_LENGTH] = key.as_slice().try_into().map_err(|_| {
+            ReplicateStatusCause::PreComputeDatasetDecryptionFailed(self.filename.clone())
+        })?;
+        let iv_slice: &[u8; AES_IV_LENGTH] = encrypted_content
+            .get(..AES_IV_LENGTH)
+            .and_then(|iv| iv.try_into().ok())
+            .ok_or_else(|| {
+                ReplicateStatusCause::PreComputeDatasetDecryptionFailed(self.filename.clone())
+            })?;
         let ciphertext = &encrypted_content[AES_IV_LENGTH..];
 
         Aes256CbcDec::new(key_slice.into(), iv_slice.into())
-            .decrypt_padded_vec_mut::<Pkcs7>(ciphertext)
+            .decrypt_padded_vec::<Pkcs7>(ciphertext)
             .map_err(|_| {
                 ReplicateStatusCause::PreComputeDatasetDecryptionFailed(self.filename.clone())
             })
