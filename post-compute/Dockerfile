@@ -1,7 +1,4 @@
-FROM rust:1.88-alpine3.22 AS builder
-
-# Install build dependencies with pinned versions
-RUN apk add --no-cache musl-dev=1.2.5-r12 openssl-dev=3.5.8-r0 openssl-libs-static=3.5.8-r0
+FROM rust:1.98-alpine3.24 AS builder
 
 WORKDIR /app
 
@@ -11,7 +8,7 @@ COPY . .
 # Build the application
 RUN cargo build --release --bin tee-worker-post-compute
 
-FROM alpine:3.22
+FROM alpine:3.24
 
 # Set working directory
 WORKDIR /app
