@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0](https://github.com/iExecBlockchainComputing/tee-worker-compute-rust/compare/tee-worker-post-compute-v0.3.1...tee-worker-post-compute-v0.4.0) (2026-09-03)
+
+
+### Features
+
+* upgrade to Rust 1.98.0 ([#39](https://github.com/iExecBlockchainComputing/tee-worker-compute-rust/issues/39)) ([96b3208](https://github.com/iExecBlockchainComputing/tee-worker-compute-rust/commit/96b32085b57a2273a832c56514a48fa2557ad8ca))
+
+
+### Bug Fixes
+
+* **post-compute:** enforce result encryption key length at compile time ([#36](https://github.com/iExecBlockchainComputing/tee-worker-compute-rust/issues/36)) ([8a5b7f9](https://github.com/iExecBlockchainComputing/tee-worker-compute-rust/commit/8a5b7f921b6d3f786f8809b835cfe64740239ec7))
+
 ## [0.3.1](https://github.com/iExecBlockchainComputing/tee-worker-compute-rust/compare/tee-worker-post-compute-v0.3.0...tee-worker-post-compute-v0.3.1) (2026-06-04)
 
 
