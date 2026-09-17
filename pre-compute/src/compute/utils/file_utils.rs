@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 ///
 /// * `content` - The content to write to the file
 /// * `file_path` - The path where the file should be written
-/// * `context` - A context string for logging (e.g., "url:https://iex.ec/file.txt" or "chainTaskId:0x123")
+/// * `context` - A context string for logging (e.g., "url:<https://iex.ec/file.txt>" or "chainTaskId:0x123")
 ///
 /// # Returns
 ///
