@@ -7,8 +7,8 @@ use reqwest::{blocking::Client, header::AUTHORIZATION};
 
 /// Thin wrapper around a [`Client`] that knows how to reach the iExec worker API.
 ///
-/// This client can be created directly with a base URL using [`new()`], or
-/// configured from environment variables using [`from_env()`].
+/// This client can be created directly with a base URL using [`Self::new`], or
+/// configured from environment variables using [`Self::from_env`].
 ///
 /// # Example
 ///
@@ -34,7 +34,8 @@ impl WorkerApiClient {
 
     /// Creates a new WorkerApiClient instance with configuration from environment variables.
     ///
-    /// This method retrieves the worker host from the [`WORKER_HOST_ENV_VAR`] environment variable.
+    /// This method retrieves the worker host from the
+    /// [`TeeSessionEnvironmentVariable::WorkerHostEnvVar`] environment variable.
     /// If the variable is not set or empty, it defaults to `"worker:13100"`.
     ///
     /// # Returns
@@ -77,8 +78,8 @@ impl WorkerApiClient {
     ///
     /// # Errors
     ///
-    /// This function will return an [`Error`] if the request could not be sent or
-    /// the server responded with a non‑success status.
+    /// This function will return an [`ReplicateStatusCause`] error if the request
+    /// could not be sent or the server responded with a non‑success status.
     ///
     /// # Example
     ///
