@@ -7,7 +7,23 @@
   "include-v-in-tag": true,
   "release-type": "rust",
   "packages": {
-    "post-compute": {},
-    "pre-compute": {}
+    "post-compute": {
+      "extra-files": [
+        {
+          "type": "toml",
+          "path": "/Cargo.lock",
+          "jsonpath": "$.package[?(@.name.value == 'tee-worker-post-compute')].version"
+        }
+      ]
+    },
+    "pre-compute": {
+      "extra-files": [
+        {
+          "type": "toml",
+          "path": "/Cargo.lock",
+          "jsonpath": "$.package[?(@.name.value == 'tee-worker-pre-compute')].version"
+        }
+      ]
+    }
   }
 }
