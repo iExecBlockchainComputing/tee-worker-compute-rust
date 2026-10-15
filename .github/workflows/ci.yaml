@@ -8,8 +8,8 @@ on:
 
 jobs:
   build-and-test:
-    # rust-build-v3.0.0
-    uses: iExecBlockchainComputing/github-actions-workflows/.github/workflows/rust-build.yml@6c7896d7145583aad706eb822715be122a3f8a14
+    # rust-build-v3.0.1
+    uses: iExecBlockchainComputing/github-actions-workflows/.github/workflows/rust-build.yml@9be95371356a8f82615ff3dd0a6df945265d33a6
     with:
       rust-version: '1.98.0'
       working-directory: "."
@@ -20,54 +20,49 @@ jobs:
     name: Determine image tag
     needs: build-and-test
     runs-on: ubuntu-latest
-    if: |
-      github.repository_owner == 'iExecBlockchainComputing' &&
-      (github.ref_name == 'main' ||
-      startsWith(github.head_ref, 'feat/') ||
-      startsWith(github.head_ref, 'fix/') ||
-      (github.event_name == 'workflow_dispatch' && (startsWith(github.ref_name, 'feat/') || startsWith(github.ref_name, 'fix/'))))
+    if: github.repository_owner == 'iExecBlockchainComputing'
     outputs:
       image_tag: ${{ steps.determine-tag.outputs.image_tag }}
     steps:
       - name: Determine base tag
         id: determine-tag
+        env:
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ] ; then
-            SHORT_SHA=$(echo ${{ github.event.pull_request.head.sha }} | cut -c1-8)
-          else
-            SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-8)
-          fi
+          short_sha=$(echo "$HEAD_SHA" | cut -c1-8)
 
-          if [ "${{ github.ref_name }}" = "main" ] ; then
-            echo "Processing main branch"
-            echo "image_tag=dev-${SHORT_SHA}" | tee -a $GITHUB_OUTPUT
-          else
-            # This covers feat/ and fix/ branches
-            echo "Processing feat/fix branch ${{ github.head_ref }}"
-            echo "image_tag=feature-${SHORT_SHA}" | tee -a $GITHUB_OUTPUT
-          fi
+          case "$BRANCH" in
+            main)              echo "image_tag=dev-${short_sha}" | tee -a $GITHUB_OUTPUT;;
+            feat/*|fix/*)      echo "image_tag=feature-${short_sha}" | tee -a $GITHUB_OUTPUT;;
+            release-please--*) : ;;
+            *)
+              echo "❌ Branch does not respect naming rules: $BRANCH"
+              echo "Expected one of: main, feat/*, fix/*, release-please--*"
+              exit 1
+              ;;
+          esac
 
   build-oci-image:
     name: Build OCI images
     needs: prepare
+    if: needs.prepare.outputs.image_tag != ''
     strategy:
       matrix:
         package: [post-compute, pre-compute]
-    # docker-build-v3.5.2
-    uses: iExecBlockchainComputing/github-actions-workflows/.github/workflows/docker-build.yml@0b4bde3c948a886b7df750a3ccbda169102d94b4
+    # docker-build-v3.8.0
+    uses: iExecBlockchainComputing/github-actions-workflows/.github/workflows/docker-build.yml@71e6b9e61eefe6ca92540523ff2589274399b7cd
     with:
-      image-name: docker-regis.iex.ec/tee-worker-${{ matrix.package }}-rust
+      image-name: docker.io/iexechub/tee-worker-${{ matrix.package }}-rust
       image-tag: ${{ needs.prepare.outputs.image_tag }}
       dockerfile: ${{ matrix.package }}/Dockerfile
       context: .
-      registry: docker-regis.iex.ec
+      registry: docker.io
       push: true
       security-scan: true
       security-report: "sarif"
       hadolint: true
       platform: linux/amd64
     secrets:
-      dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
-      dockerhub-password: ${{ secrets.DOCKERHUB_TOKEN_PULL_ONLY }}
-      username: ${{ secrets.NEXUS_USERNAME }}
-      password: ${{ secrets.NEXUS_PASSWORD }}
+      username: ${{ secrets.DOCKERHUB_USERNAME }}
+      password: ${{ secrets.DOCKERHUB_PAT }}

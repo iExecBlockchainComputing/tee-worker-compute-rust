@@ -22,6 +22,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Determine base tag
         id: determine-tag
@@ -58,21 +59,19 @@ jobs:
   build-oci-image:
     name: Build OCI image
     needs: prepare
-    # docker-build-v3.5.2
-    uses: iExecBlockchainComputing/github-actions-workflows/.github/workflows/docker-build.yml@0b4bde3c948a886b7df750a3ccbda169102d94b4
+    # docker-build-v3.8.0
+    uses: iExecBlockchainComputing/github-actions-workflows/.github/workflows/docker-build.yml@71e6b9e61eefe6ca92540523ff2589274399b7cd
     with:
-      image-name: docker-regis.iex.ec/${{ needs.prepare.outputs.image_name }}
+      image-name: docker.io/iexechub/${{ needs.prepare.outputs.image_name }}
       image-tag: ${{ needs.prepare.outputs.image_tag }}
       dockerfile: ${{ needs.prepare.outputs.dockerfile }}
       context: .
-      registry: docker-regis.iex.ec
+      registry: docker.io
       push: true
       security-scan: true
       security-report: "sarif"
       hadolint: true
       platform: linux/amd64
     secrets:
-      dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
-      dockerhub-password: ${{ secrets.DOCKERHUB_TOKEN_PULL_ONLY }}
-      username: ${{ secrets.NEXUS_USERNAME }}
-      password: ${{ secrets.NEXUS_PASSWORD }}
+      username: ${{ secrets.DOCKERHUB_USERNAME }}
+      password: ${{ secrets.DOCKERHUB_PAT }}
